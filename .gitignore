@@ -1,0 +1,34 @@
+# Android Studio (local machine state)
+.idea/
+*.iml
+
+# Gradle / Kotlin generated output
+.gradle/
+.kotlin/
+build/
+
+# Android SDK path is different on every contributor machine
+local.properties
+
+# Native build output
+.externalNativeBuild/
+.cxx/
+captures/
+
+# Local secrets - commit example files only
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+
+# Optional generated backend/runtime data
+node_modules/
+postgres-data/
+minio-data/
+
+# Operating system files
+.DS_Store
+Thumbs.db
