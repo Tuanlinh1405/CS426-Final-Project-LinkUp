@@ -20,6 +20,7 @@ import com.example.linkup.core.navigation.AppNavigator
 import com.example.linkup.core.navigation.AppRoute
 import com.example.linkup.core.ui.LinkUpBottomBar
 import com.example.linkup.data.model.Post
+import com.example.linkup.data.repository.AuthRepositoryImpl
 import com.example.linkup.data.repository.FakeLinkUpRepository
 import com.example.linkup.feature.ai.AiChatScreen
 import com.example.linkup.feature.ai.AiConversationsScreen
@@ -52,6 +53,7 @@ private val bottomDestinations = setOf(
 @Composable
 fun LinkUpApp() {
     val repository = remember { FakeLinkUpRepository() }
+    val authRepository = remember { AuthRepositoryImpl() }
     val navigator = remember { AppNavigator() }
     var current by remember { mutableStateOf(navigator.current) }
     var posts by remember { mutableStateOf(repository.feed()) }
@@ -88,8 +90,8 @@ fun LinkUpApp() {
         ) {
             when (current) {
                 AppRoute.SPLASH -> SplashScreen()
-                AppRoute.LOGIN -> LoginScreen({ reset(AppRoute.FEED) }, { goTo(AppRoute.REGISTER) })
-                AppRoute.REGISTER -> RegisterScreen(::back) { reset(AppRoute.FEED) }
+                AppRoute.LOGIN -> LoginScreen(authRepository, { reset(AppRoute.FEED) }, { goTo(AppRoute.REGISTER) })
+                AppRoute.REGISTER -> RegisterScreen(authRepository, ::back) { reset(AppRoute.FEED) }
                 AppRoute.FEED -> FeedScreen(
                     repository.currentUser(), posts,
                     onCreatePost = { goTo(AppRoute.CREATE_POST) },

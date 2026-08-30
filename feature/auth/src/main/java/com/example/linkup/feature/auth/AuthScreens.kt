@@ -32,13 +32,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.unit.sp
 import com.example.linkup.core.ui.ChoiceChip
 import com.example.linkup.core.ui.LinkUpField
 import com.example.linkup.core.ui.LinkUpLogo
 import com.example.linkup.core.ui.PrimaryButton
+import com.example.linkup.data.repository.AuthRepository
 import com.example.linkup.ui.theme.LinkMuted
 import com.example.linkup.ui.theme.LinkPurple
+import kotlinx.coroutines.launch
 
 @Composable
 fun SplashScreen() {
@@ -62,10 +65,12 @@ fun SplashScreen() {
 }
 
 @Composable
-fun LoginScreen(onLogin: () -> Unit, onRegister: () -> Unit) {
-    var email by remember { mutableStateOf("sarah@linkup.demo") }
-    var password by remember { mutableStateOf("password") }
+fun LoginScreen(authRepository: AuthRepository, onLogin: () -> Unit, onRegister: () -> Unit) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp, vertical = 40.dp),
@@ -81,30 +86,52 @@ fun LoginScreen(onLogin: () -> Unit, onRegister: () -> Unit) {
         LinkUpField(password, { password = it; error = null }, "Password", visualTransformation = PasswordVisualTransformation())
         if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
         Text("Forgot password?", color = LinkPurple, modifier = Modifier.align(Alignment.End).padding(vertical = 14.dp))
-        PrimaryButton("Login", onClick = {
-            if (email.isBlank() || password.length < 4) error = "Please enter a valid account" else onLogin()
-        })
+        
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+        } else {
+            PrimaryButton("Login", onClick = {
+                if (email.isBlank() || password.length < 4) {
+                    error = "Please enter a valid account"
+                } else {
+                    isLoading = true
+                    scope.launch {
+                        authRepository.login(email, password)
+                            .onSuccess {
+                                isLoading = false
+                                onLogin()
+                            }
+                            .onFailure {
+                                isLoading = false
+                                error = it.message ?: "Login failed"
+                            }
+                    }
+                }
+            })
+        }
+        
         Spacer(Modifier.height(28.dp))
         Row(horizontalArrangement = Arrangement.Center) {
             Text("New to LinkUp? ", color = LinkMuted)
-            Text("Create account", color = LinkPurple, fontWeight = FontWeight.Bold, modifier = Modifier.clickable(onClick = onRegister))
+            Text("Create account", color = LinkPurple, fontWeight = FontWeight.Bold, modifier = Modifier.clickable(onClick = onRegister, enabled = !isLoading))
         }
-        Spacer(Modifier.height(30.dp))
-        Text("Demo account is filled in — tap Login to explore", color = LinkMuted, fontSize = 12.sp, textAlign = TextAlign.Center)
     }
 }
 
 @Composable
-fun RegisterScreen(onBack: () -> Unit, onRegistered: () -> Unit) {
+fun RegisterScreen(authRepository: AuthRepository, onBack: () -> Unit, onRegistered: () -> Unit) {
     var name by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("Female") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState())) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("‹", fontSize = 34.sp, modifier = Modifier.clickable(onClick = onBack).padding(end = 12.dp))
+            Text("‹", fontSize = 34.sp, modifier = Modifier.clickable(onClick = onBack, enabled = !isLoading).padding(end = 12.dp))
             LinkUpLogo(compact = true)
         }
         Column(Modifier.padding(horizontal = 24.dp)) {
@@ -118,15 +145,40 @@ fun RegisterScreen(onBack: () -> Unit, onRegistered: () -> Unit) {
             LinkUpField(email, { email = it }, "Email")
             Spacer(Modifier.height(10.dp))
             LinkUpField(password, { password = it }, "Password", visualTransformation = PasswordVisualTransformation())
+            
+            if (error != null) {
+                Text(error!!, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+            }
+            
             Spacer(Modifier.height(14.dp))
             Text("Gender", fontWeight = FontWeight.SemiBold)
             Row(Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("Female", "Male", "Other").forEach { value ->
-                    ChoiceChip(value, selected = gender == value) { gender = value }
+                    ChoiceChip(value, selected = gender == value) { if (!isLoading) gender = value }
                 }
             }
             Spacer(Modifier.height(10.dp))
-            PrimaryButton("Create Account", onRegistered, enabled = name.isNotBlank() && email.contains("@") && password.length >= 4)
+            
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally).padding(16.dp))
+            } else {
+                PrimaryButton("Create Account", onClick = {
+                    isLoading = true
+                    error = null
+                    scope.launch {
+                        authRepository.register(email, username, password, name)
+                            .onSuccess {
+                                isLoading = false
+                                onRegistered()
+                            }
+                            .onFailure {
+                                isLoading = false
+                                error = it.message ?: "Registration failed"
+                            }
+                    }
+                }, enabled = name.isNotBlank() && email.contains("@") && password.length >= 4)
+            }
+
             Text(
                 "By creating an account, you agree to the Terms and Privacy Policy.",
                 color = LinkMuted,
