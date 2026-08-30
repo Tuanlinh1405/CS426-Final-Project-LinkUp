@@ -1,10 +1,13 @@
 # LinkUp — kiến trúc project, REST API, WebSocket và database
 
-Tài liệu này là hợp đồng kỹ thuật để Android, backend và database có thể được phát triển song song. Bản Android hiện tại là prototype chạy được bằng `FakeLinkUpRepository`; khi backend hoàn thành, thay implementation repository nhưng giữ nguyên model/UI contract.
+Tài liệu này là hợp đồng kỹ thuật để Android, backend và database có thể được phát triển song song. Bản Android 
+hiện tại là prototype chạy được bằng `FakeLinkUpRepository`; khi backend hoàn thành, thay implementation repository 
+nhưng giữ nguyên model/UI contract.
 
 ## 1. Quyết định tổ chức Android
 
-LinkUp dùng **một `MainActivity`**. Với Jetpack Compose, màn hình là `@Composable`, không cần tạo một Activity cho mỗi page. Cách này giữ back stack nhất quán, truyền tham số an toàn và tránh phải cùng sửa `AndroidManifest.xml`.
+LinkUp dùng **một `MainActivity`**. Với Jetpack Compose, màn hình là `@Composable`, không cần tạo một Activity cho 
+mỗi page. Cách này giữ back stack nhất quán, truyền tham số an toàn và tránh phải cùng sửa `AndroidManifest.xml`.
 
 Để giảm conflict khi làm nhóm:
 
@@ -51,7 +54,8 @@ Dependency graph hiện tại:
     └── :data
 ```
 
-Không feature module nào phụ thuộc feature module khác. Mọi chuyển màn hình được phát ra bằng callback rồi `:app` quyết định route, nhờ đó feature có thể build độc lập và tránh dependency vòng.
+Không feature module nào phụ thuộc feature module khác. Mọi chuyển màn hình được phát ra bằng callback rồi 
+`:app` quyết định route, nhờ đó feature có thể build độc lập và tránh dependency vòng.
 
 Khi bước vào production, mỗi feature nên mở rộng cùng một mẫu:
 
@@ -126,7 +130,8 @@ Response lỗi:
 }
 ```
 
-Các status code thống nhất: `200/201/204`, `400` validation, `401` token lỗi, `403` không có quyền, `404`, `409` xung đột, `413` file lớn, `429` rate limit, `500` lỗi server.
+Các status code thống nhất: `200/201/204`, `400` validation, `401` token lỗi, `403` không có quyền, `404`, `409` 
+xung đột, `413` file lớn, `429` rate limit, `500` lỗi server.
 
 ## 4. Authentication
 

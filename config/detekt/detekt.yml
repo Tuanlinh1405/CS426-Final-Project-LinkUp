@@ -1,0 +1,54 @@
+build:
+  maxIssues: 1000 # Temporarily high to allow existing issues
+  excludeCorrectable: false
+  weights:
+    # complexity: 2
+    # LongParameterList: 1
+    # style: 1
+    # comments: 1
+
+config:
+  validation: true
+  warningsAsErrors: false
+  checkExhaustiveness: false
+  # when writing own rules with transitive dependencies, indent them properly
+  # under the 'rules' key.
+
+complexity:
+  active: true
+  LongMethod:
+    active: true
+    threshold: 60
+  LongParameterList:
+    active: true
+    functionThreshold: 10
+    constructorThreshold: 10
+  LargeClass:
+    active: true
+    threshold: 600
+#  CyclomaticComplexity:
+#    active: true
+#    threshold: 15
+
+naming:
+  active: true
+  FunctionNaming:
+    active: true
+    functionPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    excludeClassPattern: '.*Test'
+  ClassNaming:
+    active: true
+    classPattern: '[A-Z][a-zA-Z0-9]*'
+
+style:
+  active: true
+  MaxLineLength:
+    active: true
+    maxLineLength: 120
+  MagicNumber:
+    active: true
+    ignoreNumbers:
+      - '-1'
+      - '0'
+      - '1'
+      - '2'

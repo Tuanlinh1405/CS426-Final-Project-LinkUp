@@ -1,6 +1,8 @@
 # LinkUp — chạy và kiểm tra prototype
 
-Prototype Jetpack Compose dựa trên `Design UI/LinkUp.png`. App hiện chạy bằng mock data để team kiểm tra UI, navigation và chia feature trước khi kết nối Ktor/PostgreSQL/MinIO.
+Prototype Jetpack Compose dựa trên `Design UI/LinkUp.png`. App hiện chạy bằng mock 
+data để team kiểm tra UI, navigation và chia feature trước khi kết nối 
+Ktor/PostgreSQL/MinIO.
 
 ## Chạy project
 
@@ -45,11 +47,15 @@ LinkUp/
     └── more/
 ```
 
-Mỗi folder trên là Gradle module riêng và có `build.gradle.kts`. Có thể test một module bằng ví dụ `./gradlew :data:testDebugUnitTest` hoặc build riêng `./gradlew :feature:feed:assembleDebug`.
+Mỗi folder trên là Gradle module riêng và có `build.gradle.kts`. Có thể test một 
+module bằng ví dụ `./gradlew :data:testDebugUnitTest` hoặc build riêng 
+`./gradlew :feature:feed:assembleDebug`.
 
 ## Tài liệu
 
 - `docs/plan_simplified.md`: plan gốc.
 - `docs/ARCHITECTURE_API_DATABASE.md`: REST API, WebSocket, Room, PostgreSQL, MinIO, folder ownership và hướng dẫn chia việc.
 
-Project dùng một `MainActivity` theo kiến trúc Compose. Chỉ integration owner nên sửa `app/src/main/.../app/LinkUpApp.kt`; feature owner làm việc trong module của mình.
+Project dùng một `MainActivity` theo kiến trúc Compose. Chỉ integration owner nên 
+sửa `app/src/main/.../app/LinkUpApp.kt`; feature owner làm việc trong module của 
+mình.
