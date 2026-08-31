@@ -10,9 +10,26 @@ import org.jetbrains.exposed.sql.transactions.transaction
 object DatabaseFactory {
     fun init() {
         val driverClassName = "org.postgresql.Driver"
-        val jdbcURL = EnvConfig.DB_URI.replace("postgresql://", "jdbc:postgresql://")
+        val rawUri = EnvConfig.DATABASE_URL
         
-        val database = Database.connect(jdbcURL, driverClassName)
+        // Parse postgresql://user:password@host:port/database URI format
+        val regex = Regex("""postgresql://([^:]+):([^@]+)@([^:/]+)(?::(\d+))?/(.+)""")
+        val match = regex.find(rawUri)
+
+        val database = if (match != null) {
+            val (user, password, host, portStr, dbName) = match.destructured
+            val port = if (portStr.isNotEmpty()) portStr else "5432"
+            val jdbcUrl = "jdbc:postgresql://$host:$port/$dbName"
+            Database.connect(
+                url = jdbcUrl,
+                driver = driverClassName,
+                user = user,
+                password = password
+            )
+        } else {
+            val jdbcURL = if (rawUri.startsWith("jdbc:")) rawUri else rawUri.replace("postgresql://", "jdbc:postgresql://")
+            Database.connect(jdbcURL, driverClassName)
+        }
         
         transaction(database) {
             // Create all tables if they don't exist

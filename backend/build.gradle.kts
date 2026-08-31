@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.ktor)
     kotlin("jvm")
+    application
 }
 
 group = "com.linkup"
@@ -9,12 +9,6 @@ version = "0.0.1"
 
 application {
     mainClass.set("com.linkup.ApplicationKt")
-}
-
-ktor {
-    fatJar {
-        archiveFileName.set("linkup-backend.jar")
-    }
 }
 
 dependencies {
