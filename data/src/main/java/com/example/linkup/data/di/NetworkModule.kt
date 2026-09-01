@@ -20,7 +20,7 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideBaseUrl(): String = "http://10.0.2.2:8080/"
+    fun provideBaseUrl(): String = "http://10.0.2.2:8081/"
 
     @Provides
     @Singleton
