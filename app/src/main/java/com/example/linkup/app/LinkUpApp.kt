@@ -20,13 +20,12 @@ import com.example.linkup.core.navigation.AppNavigator
 import com.example.linkup.core.navigation.AppRoute
 import com.example.linkup.core.ui.LinkUpBottomBar
 import com.example.linkup.data.model.Post
-import com.example.linkup.data.repository.AuthRepositoryImpl
 import com.example.linkup.data.repository.FakeLinkUpRepository
 import com.example.linkup.feature.ai.AiChatScreen
 import com.example.linkup.feature.ai.AiConversationsScreen
-import com.example.linkup.feature.auth.LoginScreen
-import com.example.linkup.feature.auth.RegisterScreen
-import com.example.linkup.feature.auth.SplashScreen
+import com.example.linkup.feature.auth.login.LoginScreen
+import com.example.linkup.feature.auth.register.RegisterScreen
+import com.example.linkup.feature.auth.splash.SplashScreen
 import com.example.linkup.feature.chat.ChatDetailScreen
 import com.example.linkup.feature.chat.ChatListScreen
 import com.example.linkup.feature.dating.DatingDiscoverScreen
@@ -53,7 +52,6 @@ private val bottomDestinations = setOf(
 @Composable
 fun LinkUpApp() {
     val repository = remember { FakeLinkUpRepository() }
-    val authRepository = remember { AuthRepositoryImpl() }
     val navigator = remember { AppNavigator() }
     var current by remember { mutableStateOf(navigator.current) }
     var posts by remember { mutableStateOf(repository.feed()) }
@@ -90,8 +88,8 @@ fun LinkUpApp() {
         ) {
             when (current) {
                 AppRoute.SPLASH -> SplashScreen()
-                AppRoute.LOGIN -> LoginScreen(authRepository, { reset(AppRoute.FEED) }, { goTo(AppRoute.REGISTER) })
-                AppRoute.REGISTER -> RegisterScreen(authRepository, ::back) { reset(AppRoute.FEED) }
+                AppRoute.LOGIN -> LoginScreen(onLoginSuccess = { reset(AppRoute.FEED) }, onRegister = { goTo(AppRoute.REGISTER) })
+                AppRoute.REGISTER -> RegisterScreen(onBack = ::back, onRegistered = { reset(AppRoute.FEED) })
                 AppRoute.FEED -> FeedScreen(
                     repository.currentUser(), posts,
                     onCreatePost = { goTo(AppRoute.CREATE_POST) },

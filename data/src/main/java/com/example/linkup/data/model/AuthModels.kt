@@ -1,32 +1,20 @@
 package com.example.linkup.data.model
 
-import kotlinx.serialization.Serializable
-
-@Serializable
-data class LoginRequest(
-    val emailOrUsername: String,
-    val password: String
-)
-
-@Serializable
-data class RegisterRequest(
-    val email: String,
-    val username: String,
-    val password: String,
-    val fullName: String? = null
-)
-
-@Serializable
-data class AuthResponse(
-    val user: UserResponse,
+data class AuthResult(
+    val user: AuthUser,
     val token: String
 )
 
-@Serializable
-data class UserResponse(
+data class AuthUser(
     val id: String,
     val email: String,
     val username: String,
     val fullName: String?,
-    val createdAt: String
+    val createdAt: String? = null
 )
+
+// Legacy compatibility aliases
+typealias LoginRequest = com.example.linkup.data.remote.dto.LoginRequestDto
+typealias RegisterRequest = com.example.linkup.data.remote.dto.RegisterRequestDto
+typealias AuthResponse = AuthResult
+typealias UserResponse = AuthUser

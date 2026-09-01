@@ -1,10 +1,21 @@
 package com.example.linkup.data.repository
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
+import com.example.linkup.data.local.datastore.AuthTokenDataStore
+import com.example.linkup.data.remote.api.AuthApiService
+import com.example.linkup.data.remote.dto.AuthResponseDto
+import com.example.linkup.data.remote.dto.LoginRequestDto
+import com.example.linkup.data.remote.dto.RegisterRequestDto
+import com.example.linkup.data.remote.dto.UserDto
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import java.util.*
+import retrofit2.Response
 
 class AuthRepositoryTest {
 
@@ -12,40 +23,44 @@ class AuthRepositoryTest {
 
     @Before
     fun setup() {
-        authRepository = AuthRepositoryImpl()
+        val fakePrefsDataStore = object : DataStore<Preferences> {
+            override val data = flowOf(emptyPreferences())
+            override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+                return transform(emptyPreferences())
+            }
+        }
+        val fakeAuthTokenDataStore = AuthTokenDataStore(fakePrefsDataStore)
+        val fakeApi = FakeAuthApiService()
+        authRepository = AuthRepositoryImpl(fakeApi, fakeAuthTokenDataStore)
     }
 
     @Test
-    fun testRegisterAndLogin() = runBlocking {
-        val randomUser = "user_" + UUID.randomUUID().toString().substring(0, 8)
-        val email = "$randomUser@example.com"
-        val password = "Password123!"
+    fun testLoginSuccess() = runBlocking {
+        val result = authRepository.login("testuser", "password")
+        assertTrue("Login should succeed", result.isSuccess)
+        assertEquals("fake_jwt_token", result.getOrNull()?.token)
+        assertEquals("testuser", result.getOrNull()?.user?.username)
+    }
 
-        // 1. Test Register
-        println("Testing Register for $randomUser...")
-        val registerResult = authRepository.register(
-            email = email,
-            username = randomUser,
-            password = password,
-            fullName = "Test User"
-        )
-        
-        // Note: This test will fail if the backend is not running at 10.0.2.2:8080 
-        // or if 10.0.2.2 is not reachable from the test environment.
-        // On a local machine test, you might need to change the IP to localhost.
-        
-        if (registerResult.isSuccess) {
-            println("Register Success!")
-            assertTrue(registerResult.isSuccess)
+    @Test
+    fun testRegisterSuccess() = runBlocking {
+        val result = authRepository.register("test@example.com", "testuser", "password", "Test User")
+        assertTrue("Register should succeed", result.isSuccess)
+        assertEquals("fake_jwt_token", result.getOrNull()?.token)
+        assertEquals("Test User", result.getOrNull()?.user?.fullName)
+    }
+}
 
-            // 2. Test Login
-            println("Testing Login...")
-            val loginResult = authRepository.login(randomUser, password)
-            assertTrue("Login should be successful after registration", loginResult.isSuccess)
-            println("Login Success! Token: ${loginResult.getOrNull()?.token}")
-        } else {
-            println("Register Failed: ${registerResult.exceptionOrNull()?.message}")
-            println("NOTE: This test requires the Backend server to be running and accessible.")
-        }
+private class FakeAuthApiService : AuthApiService {
+    override suspend fun login(request: LoginRequestDto): Response<AuthResponseDto> {
+        val userDto = UserDto("u1", "test@example.com", request.emailOrUsername, "Test User", "2026-01-01")
+        val responseDto = AuthResponseDto(userDto, "fake_jwt_token")
+        return Response.success(responseDto)
+    }
+
+    override suspend fun register(request: RegisterRequestDto): Response<AuthResponseDto> {
+        val userDto = UserDto("u1", request.email, request.username, request.fullName, "2026-01-01")
+        val responseDto = AuthResponseDto(userDto, "fake_jwt_token")
+        return Response.success(responseDto)
     }
 }
