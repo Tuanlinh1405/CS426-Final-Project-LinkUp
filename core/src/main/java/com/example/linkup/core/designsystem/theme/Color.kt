@@ -1,4 +1,4 @@
-package com.example.linkup.ui.theme
+package com.example.linkup.core.designsystem.theme
 
 import androidx.compose.ui.graphics.Color
 

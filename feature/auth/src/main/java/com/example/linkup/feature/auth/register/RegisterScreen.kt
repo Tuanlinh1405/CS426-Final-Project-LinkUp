@@ -30,11 +30,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.linkup.core.ui.ChoiceChip
-import com.example.linkup.core.ui.LinkUpField
-import com.example.linkup.core.ui.LinkUpLogo
-import com.example.linkup.core.ui.PrimaryButton
-import com.example.linkup.ui.theme.LinkMuted
+import com.example.linkup.core.designsystem.component.ChoiceChip
+import com.example.linkup.core.designsystem.component.LinkUpField
+import com.example.linkup.core.designsystem.component.LinkUpLogo
+import com.example.linkup.core.designsystem.component.PrimaryButton
+import com.example.linkup.core.designsystem.theme.LinkMuted
 
 @Composable
 fun RegisterScreen(

@@ -29,18 +29,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.linkup.core.ui.Avatar
-import com.example.linkup.core.ui.ChoiceChip
-import com.example.linkup.core.ui.EmptyState
-import com.example.linkup.core.ui.LinkUpField
-import com.example.linkup.core.ui.ScreenHeader
+import com.example.linkup.core.designsystem.component.Avatar
+import com.example.linkup.core.designsystem.component.ChoiceChip
+import com.example.linkup.core.designsystem.component.EmptyState
+import com.example.linkup.core.designsystem.component.LinkUpField
+import com.example.linkup.core.designsystem.component.ScreenHeader
 import com.example.linkup.data.model.NotificationItem
 import com.example.linkup.data.model.User
-import com.example.linkup.ui.theme.LinkCanvas
-import com.example.linkup.ui.theme.LinkDivider
-import com.example.linkup.ui.theme.LinkMuted
-import com.example.linkup.ui.theme.LinkPurple
-import com.example.linkup.ui.theme.LinkPurpleSoft
+import com.example.linkup.core.designsystem.theme.LinkCanvas
+import com.example.linkup.core.designsystem.theme.LinkDivider
+import com.example.linkup.core.designsystem.theme.LinkMuted
+import com.example.linkup.core.designsystem.theme.LinkPurple
+import com.example.linkup.core.designsystem.theme.LinkPurpleSoft
 
 @Composable
 fun SearchScreen(onBack: () -> Unit, onOpenProfile: () -> Unit) {

@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.example.linkup.app.LinkUpApp
-import com.example.linkup.ui.theme.LinkUpTheme
+import com.example.linkup.core.designsystem.theme.LinkUpTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 /** Single Android entry point. Feature teams should not need to edit this file. */

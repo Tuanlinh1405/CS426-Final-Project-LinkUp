@@ -31,13 +31,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.linkup.core.ui.Avatar
-import com.example.linkup.core.ui.LinkUpField
-import com.example.linkup.core.ui.PrimaryButton
-import com.example.linkup.core.ui.ScreenHeader
+import com.example.linkup.core.designsystem.component.Avatar
+import com.example.linkup.core.designsystem.component.LinkUpField
+import com.example.linkup.core.designsystem.component.PrimaryButton
+import com.example.linkup.core.designsystem.component.ScreenHeader
 import com.example.linkup.data.model.User
-import com.example.linkup.ui.theme.LinkMuted
-import com.example.linkup.ui.theme.LinkPurple
+import com.example.linkup.core.designsystem.theme.LinkMuted
+import com.example.linkup.core.designsystem.theme.LinkPurple
 
 @Composable
 fun ReelsScreen(onUpload: () -> Unit, onProfile: () -> Unit) {

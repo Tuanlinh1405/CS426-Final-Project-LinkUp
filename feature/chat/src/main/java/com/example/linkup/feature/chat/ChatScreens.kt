@@ -36,15 +36,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.linkup.core.ui.Avatar
-import com.example.linkup.core.ui.LinkUpField
-import com.example.linkup.core.ui.ScreenHeader
+import com.example.linkup.core.designsystem.component.Avatar
+import com.example.linkup.core.designsystem.component.LinkUpField
+import com.example.linkup.core.designsystem.component.ScreenHeader
 import com.example.linkup.data.model.ChatMessage
 import com.example.linkup.data.model.Conversation
-import com.example.linkup.ui.theme.LinkCanvas
-import com.example.linkup.ui.theme.LinkDivider
-import com.example.linkup.ui.theme.LinkMuted
-import com.example.linkup.ui.theme.LinkPurple
+import com.example.linkup.core.designsystem.theme.LinkCanvas
+import com.example.linkup.core.designsystem.theme.LinkDivider
+import com.example.linkup.core.designsystem.theme.LinkMuted
+import com.example.linkup.core.designsystem.theme.LinkPurple
 
 @Composable
 fun ChatListScreen(conversations: List<Conversation>, onOpenChat: (Conversation) -> Unit) {

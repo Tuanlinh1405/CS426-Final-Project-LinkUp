@@ -16,9 +16,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.example.linkup.core.designsystem.component.LinkUpBottomBar
 import com.example.linkup.core.navigation.AppNavigator
 import com.example.linkup.core.navigation.AppRoute
-import com.example.linkup.core.ui.LinkUpBottomBar
 import com.example.linkup.data.model.Post
 import com.example.linkup.data.repository.FakeLinkUpRepository
 import com.example.linkup.feature.ai.AiChatScreen

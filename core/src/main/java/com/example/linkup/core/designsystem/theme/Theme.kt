@@ -1,4 +1,4 @@
-package com.example.linkup.ui.theme
+package com.example.linkup.core.designsystem.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
