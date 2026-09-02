@@ -14,6 +14,7 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
 import io.ktor.server.plugins.contentnegotiation.*
+import com.linkup.routes.postRoutes
 
 fun main() {
     embeddedServer(Netty, port = EnvConfig.PORT, host = EnvConfig.HOST, module = Application::module)
@@ -42,11 +43,15 @@ fun Application.module() {
     DatabaseFactory.init()
 
     val userRepository = UserRepository()
+    val postRepository = com.linkup.repository.PostRepository()
 
     routing {
         get("/") {
             call.respondText("LinkUp Backend is running!")
         }
         authRoutes(userRepository)
+        route("/api/v1") {
+            postRoutes(postRepository)
+        }
     }
 }

@@ -17,4 +17,10 @@ abstract class RepositoryModule {
     abstract fun bindAuthRepository(
         authRepositoryImpl: AuthRepositoryImpl
     ): AuthRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLinkUpRepository(
+        networkLinkUpRepository: com.example.linkup.data.repository.NetworkLinkUpRepository
+    ): com.example.linkup.data.repository.LinkUpRepository
 }

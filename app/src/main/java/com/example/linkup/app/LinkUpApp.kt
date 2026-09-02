@@ -43,6 +43,7 @@ import com.example.linkup.feature.profile.ProfileScreen
 import com.example.linkup.feature.reels.ReelsScreen
 import com.example.linkup.feature.reels.UploadReelScreen
 import kotlinx.coroutines.delay
+import com.example.linkup.data.repository.LinkUpRepository
 
 private val bottomDestinations = setOf(
     AppRoute.FEED, AppRoute.REELS, AppRoute.DATING_DISCOVER, AppRoute.CHAT_LIST, AppRoute.PROFILE
@@ -50,13 +51,23 @@ private val bottomDestinations = setOf(
 
 /** Temporary composition root. Only the integration owner should edit this routing file. */
 @Composable
-fun LinkUpApp() {
-    val repository = remember { FakeLinkUpRepository() }
+fun LinkUpApp(repository: LinkUpRepository) {
     val navigator = remember { AppNavigator() }
     var current by remember { mutableStateOf(navigator.current) }
-    var posts by remember { mutableStateOf(repository.feed()) }
-    var messages by remember { mutableStateOf(repository.messages()) }
+    var posts by remember { mutableStateOf(emptyList<Post>()) }
+    var messages by remember { mutableStateOf(emptyList<com.example.linkup.data.model.ChatMessage>()) }
     var selectedPost by remember { mutableStateOf<Post?>(null) }
+    
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val loadedPosts = repository.feed()
+            val loadedMessages = repository.messages()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                posts = loadedPosts
+                messages = loadedMessages
+            }
+        }
+    }
 
     fun goTo(route: AppRoute) { navigator.goTo(route); current = navigator.current }
     fun replace(route: AppRoute) { navigator.replace(route); current = navigator.current }

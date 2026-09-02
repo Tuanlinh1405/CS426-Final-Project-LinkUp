@@ -60,4 +60,10 @@ object NetworkModule {
     fun provideAuthApiService(retrofit: Retrofit): AuthApiService {
         return retrofit.create(AuthApiService::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun providePostApiService(retrofit: Retrofit): com.example.linkup.data.remote.api.PostApiService {
+        return retrofit.create(com.example.linkup.data.remote.api.PostApiService::class.java)
+    }
 }
