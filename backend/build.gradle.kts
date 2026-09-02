@@ -28,6 +28,12 @@ dependencies {
     implementation(libs.dotenv.kotlin)
     implementation(libs.logback)
     implementation("org.mindrot:jbcrypt:0.4")
+
+    testImplementation(kotlin("test"))
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 kotlin {

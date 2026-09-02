@@ -4,6 +4,12 @@ import com.example.linkup.data.repository.AuthRepository
 import com.example.linkup.data.repository.AuthRepositoryImpl
 import com.example.linkup.data.repository.ChatRepository
 import com.example.linkup.data.repository.ChatRepositoryImpl
+import com.example.linkup.data.repository.FriendRepository
+import com.example.linkup.data.repository.FriendRepositoryImpl
+import com.example.linkup.data.repository.NotificationRepository
+import com.example.linkup.data.repository.NotificationRepositoryImpl
+import com.example.linkup.data.repository.ProfileRepository
+import com.example.linkup.data.repository.ProfileRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -25,4 +31,22 @@ abstract class RepositoryModule {
     abstract fun bindChatRepository(
         chatRepositoryImpl: ChatRepositoryImpl
     ): ChatRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindProfileRepository(
+        profileRepositoryImpl: ProfileRepositoryImpl
+    ): ProfileRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindNotificationRepository(
+        notificationRepositoryImpl: NotificationRepositoryImpl
+    ): NotificationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFriendRepository(
+        friendRepositoryImpl: FriendRepositoryImpl
+    ): FriendRepository
 }

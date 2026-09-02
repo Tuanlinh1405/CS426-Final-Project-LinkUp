@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.concurrent.Executors
@@ -59,30 +60,16 @@ object DatabaseFactory {
         val database = Database.connect(dataSource)
 
         transaction(database) {
-            // Auto-migrate schema changes for existing PostgreSQL tables
-            try {
-                exec("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS name VARCHAR(100);")
-                exec("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS type VARCHAR(20) DEFAULT 'DIRECT';")
-                exec("""
-                    CREATE TABLE IF NOT EXISTS message_receipts (
-                        message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
-                        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                        status VARCHAR(20) NOT NULL DEFAULT 'SENT',
-                        delivered_at TIMESTAMP WITH TIME ZONE NULL,
-                        read_at TIMESTAMP WITH TIME ZONE NULL,
-                        PRIMARY KEY (message_id, user_id)
-                    );
-                """.trimIndent())
-            } catch (e: Exception) {
-                // Log/ignore if table or column alteration is handled
-            }
-
-            // Create all tables if they don't exist
+            // Creates any table that does not exist yet. Existing tables are left alone;
+            // new columns on them are handled by applyColumnMigrations() below, because
+            // SchemaUtils' column diff tries to re-add `profiles.id` and trips over its
+            // existing primary key.
             SchemaUtils.create(
                 UsersTable,
                 RefreshTokensTable,
                 ProfilesTable,
                 FollowsTable,
+                FriendshipsTable,
                 MediaTable,
                 PostsTable,
                 PostMediaTable,
@@ -101,7 +88,26 @@ object DatabaseFactory {
                 AIMessagesTable,
                 NotificationsTable
             )
+
+            applyColumnMigrations()
         }
+    }
+
+    /**
+     * Adds columns introduced after a database was first created.
+     *
+     * Each statement is idempotent, so this is safe to run on every boot and on a
+     * fresh database alike. Replace with a real migration tool (Flyway/Liquibase)
+     * once the schema starts changing shape rather than just growing.
+     */
+    private fun Transaction.applyColumnMigrations() {
+        listOf(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(32) NULL",
+            "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS location VARCHAR(120) NULL",
+            "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS website VARCHAR(255) NULL",
+            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS name VARCHAR(100) NULL",
+            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS type VARCHAR(20) DEFAULT 'DIRECT'"
+        ).forEach { exec(it) }
     }
 
     suspend fun <T> dbQuery(block: suspend () -> T): T =

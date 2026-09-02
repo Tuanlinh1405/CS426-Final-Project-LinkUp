@@ -1,11 +1,13 @@
 package com.linkup.database
 
+import org.jetbrains.exposed.dao.id.IdTable
 import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.date
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
+import java.util.UUID
 
 /** 1. Core User & Auth */
 object UsersTable : UUIDTable("users") {
@@ -13,6 +15,7 @@ object UsersTable : UUIDTable("users") {
     val username = varchar("username", 50).uniqueIndex()
     val passwordHash = text("password_hash")
     val fullName = varchar("full_name", 100).nullable()
+    val phone = varchar("phone", 32).nullable()
     val birthdate = date("birthdate").nullable()
     val gender = varchar("gender", 20).nullable()
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
@@ -26,11 +29,22 @@ object RefreshTokensTable : UUIDTable("refresh_tokens") {
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
 }
 
-/** 2. Profiles & Following */
-object ProfilesTable : UUIDTable("profiles", "user_id") {
+/**
+ * 2. Profiles & Following
+ *
+ * Matches `docs/Database Design/schema.sql`, where the primary key is `user_id`
+ * rather than a separate `id`. Declaring it as a plain UUIDTable produced an `id`
+ * column that does not exist in the database.
+ */
+object ProfilesTable : IdTable<UUID>("profiles") {
+    override val id = reference("user_id", UsersTable, onDelete = ReferenceOption.CASCADE)
+    override val primaryKey = PrimaryKey(id)
+
     val bio = text("bio").nullable()
     val avatarUrl = text("avatar_url").nullable()
     val coverUrl = text("cover_url").nullable()
+    val location = varchar("location", 120).nullable()
+    val website = varchar("website", 255).nullable()
     val followerCount = integer("follower_count").default(0)
     val followingCount = integer("following_count").default(0)
     val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp)
@@ -40,9 +54,30 @@ object FollowsTable : Table("follows") {
     val followerId = reference("follower_id", UsersTable, onDelete = ReferenceOption.CASCADE)
     val followingId = reference("following_id", UsersTable, onDelete = ReferenceOption.CASCADE)
     override val primaryKey = PrimaryKey(followerId, followingId)
-    
+
     init {
         check("cannot_follow_self") { followerId neq followingId }
+    }
+}
+
+/**
+ * Friendship and friend requests in one table.
+ *
+ * A row is a request while `status = PENDING` and a friendship once ACCEPTED, so
+ * there is exactly one row per pair and no way for the two to disagree. Direction is
+ * kept (who asked) because the UI needs it: the requester sees "Requested", the
+ * addressee sees "Respond". Membership questions therefore check both directions.
+ */
+object FriendshipsTable : UUIDTable("friendships") {
+    val requesterId = reference("requester_id", UsersTable, onDelete = ReferenceOption.CASCADE)
+    val addresseeId = reference("addressee_id", UsersTable, onDelete = ReferenceOption.CASCADE)
+    val status = varchar("status", 20).default("PENDING")
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    val respondedAt = timestamp("responded_at").nullable()
+
+    init {
+        uniqueIndex(requesterId, addresseeId)
+        check("cannot_friend_self") { requesterId neq addresseeId }
     }
 }
 
@@ -165,7 +200,7 @@ object DatingMatchesTable : UUIDTable("dating_matches") {
     val user1Id = reference("user1_id", UsersTable, onDelete = ReferenceOption.CASCADE)
     val user2Id = reference("user2_id", UsersTable, onDelete = ReferenceOption.CASCADE)
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
-    
+
     init {
         uniqueIndex(user1Id, user2Id)
     }

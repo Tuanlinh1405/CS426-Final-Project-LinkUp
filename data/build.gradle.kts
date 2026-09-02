@@ -23,6 +23,7 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.retrofit.core)
     implementation(libs.retrofit.kotlin.serialization)
+    implementation(libs.okhttp.core)
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.datastore.preferences)
