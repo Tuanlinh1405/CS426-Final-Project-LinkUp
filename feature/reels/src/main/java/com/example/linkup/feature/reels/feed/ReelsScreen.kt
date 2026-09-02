@@ -90,7 +90,9 @@ fun ReelsScreen(repository: ReelRepository, me: UserResponse?, onUpload: () -> U
             val reel = items[index]
             val currentIndex = pager.settledPage
             val currentReady = items.getOrNull(currentIndex)?.id?.let { readyReels[it] == true } == true
-            val preparePlayer = index == currentIndex || (index == currentIndex + 1 && currentReady)
+            // Give the visible Reel all available bandwidth until it is playable. Once ready,
+            // keep exactly one prepared player on either side for instant forward/back swipes.
+            val preparePlayer = shouldPrepareReel(index, currentIndex, currentReady)
             Box(Modifier.fillMaxSize()) {
                 if (preparePlayer) ReelPlayer(
                     ApiClient.mediaUrl(reel.videoUrl), reel.durationMs,

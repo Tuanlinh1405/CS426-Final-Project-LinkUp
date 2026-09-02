@@ -2,7 +2,8 @@
 
 ## Phạm vi đã triển khai trong source
 
-- Reels feed vuốt dọc, autoplay video đang hiển thị, chạm để pause/play, mute/unmute, loading/error/retry.
+- Reels feed vuốt dọc, autoplay video đang hiển thị, chạm để pause/play, kéo thanh tiến trình để tua, nhấn đúp trái/phải để lùi/tiến 10 giây, mute/unmute, loading/error/retry.
+- Video hiện tại được ưu tiên tải trước; khi phát được, app chuẩn bị đúng hai video liền kề `n-1` và `n+1` để vuốt tới/lùi nhanh mà không tải cả feed.
 - Player dừng khi mở comment, sang trang khác hoặc app vào background; giải phóng player khi rời video.
 - Hiển thị tác giả, avatar (hoặc initials), caption, số like/comment thật. Chạm tác giả để lọc Reels của họ.
 - My reels để xem/xóa video của tài khoản hiện tại; có xác nhận trước khi xóa.

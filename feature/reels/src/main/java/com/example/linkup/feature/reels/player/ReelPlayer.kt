@@ -23,6 +23,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -45,6 +46,8 @@ fun ReelPlayer(
     var buffering by remember(uri) { mutableStateOf(true) }
     var error by remember(uri) { mutableStateOf<String?>(null) }
     var position by remember(uri) { mutableFloatStateOf(0f) }
+    var scrubPosition by remember(uri) { mutableFloatStateOf(0f) }
+    var scrubbing by remember(uri) { mutableStateOf(false) }
     val watcher by rememberUpdatedState(onWatch)
     val finalReason by rememberUpdatedState(exitReason)
     val readyCallback by rememberUpdatedState(onReady)
@@ -54,7 +57,19 @@ fun ReelPlayer(
     val player = remember(uri) {
         val dataSource = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
         val mediaSource = DefaultMediaSourceFactory(context).setDataSourceFactory(dataSource)
-        ExoPlayer.Builder(context).setMediaSourceFactory(mediaSource).build().apply {
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                MIN_BUFFER_MS,
+                MAX_BUFFER_MS,
+                BUFFER_FOR_PLAYBACK_MS,
+                BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
+            )
+            .build()
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(mediaSource)
+            .setLoadControl(loadControl)
+            .build()
+            .apply {
             repeatMode = Player.REPEAT_MODE_ONE
             setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
             setHandleAudioBecomingNoisy(true)
@@ -100,7 +115,9 @@ fun ReelPlayer(
                 started = true; watcher?.invoke(WatchEvent(sessionId, 0, "START"))
             }
             tracker.tick(now, player.isPlaying)
-            position = (player.currentPosition.toFloat() / player.duration.coerceAtLeast(1)).coerceIn(0f, 1f)
+            if (!scrubbing) {
+                position = (player.currentPosition.toFloat() / resolvedDuration(player.duration, durationMs)).coerceIn(0f, 1f)
+            }
             if (started && now - lastReport >= 5000) {
                 watcher?.invoke(WatchEvent(sessionId, tracker.watchedMs)); lastReport = now
             }
@@ -113,7 +130,18 @@ fun ReelPlayer(
             update = { it.keepScreenOn = active && resumed && !paused; it.player = player },
             modifier = Modifier.fillMaxSize(),
         )
-        Box(Modifier.matchParentSize().pointerInput(player) { detectTapGestures { paused = !paused } })
+        Box(Modifier.matchParentSize().pointerInput(player, durationMs) {
+            detectTapGestures(
+                onTap = { paused = !paused },
+                onDoubleTap = { offset ->
+                    val duration = resolvedDuration(player.duration, durationMs)
+                    val delta = if (offset.x < size.width / 2f) -DOUBLE_TAP_SEEK_MS else DOUBLE_TAP_SEEK_MS
+                    val target = seekPosition(player.currentPosition, duration, delta)
+                    player.seekTo(target)
+                    position = target.toFloat() / duration
+                },
+            )
+        })
         if (buffering && error == null) CircularProgressIndicator(color = Color.White)
         if (paused && error == null) Text("▶", color = Color.White, fontSize = 48.sp)
         error?.let { message ->
@@ -122,6 +150,31 @@ fun ReelPlayer(
                 TextButton(onClick = { error = null; player.prepare(); paused = false }) { Text("Retry", color = Color.White) }
             }
         }
-        LinearProgressIndicator(progress = { position }, modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(2.dp), color = Color.White, trackColor = Color.White.copy(alpha = .2f))
+        Slider(
+            value = if (scrubbing) scrubPosition else position,
+            onValueChange = {
+                scrubbing = true
+                scrubPosition = it
+            },
+            onValueChangeFinished = {
+                val duration = resolvedDuration(player.duration, durationMs)
+                val target = (duration * scrubPosition).toLong().coerceIn(0, duration)
+                player.seekTo(target)
+                position = scrubPosition
+                scrubbing = false
+            },
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White,
+                activeTrackColor = Color.White,
+                inactiveTrackColor = Color.White.copy(alpha = .25f),
+            ),
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(28.dp),
+        )
     }
 }
+
+private const val MIN_BUFFER_MS = 2_000
+private const val MAX_BUFFER_MS = 15_000
+private const val BUFFER_FOR_PLAYBACK_MS = 750
+private const val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 1_500
+private const val DOUBLE_TAP_SEEK_MS = 10_000L
