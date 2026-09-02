@@ -21,6 +21,8 @@ import com.example.linkup.core.navigation.AppRoute
 import com.example.linkup.core.ui.LinkUpBottomBar
 import com.example.linkup.data.model.Post
 import com.example.linkup.data.repository.FakeLinkUpRepository
+import com.example.linkup.data.repository.NetworkLinkUpRepository
+import com.example.linkup.data.repository.LinkUpRepository
 import com.example.linkup.feature.ai.AiChatScreen
 import com.example.linkup.feature.ai.AiConversationsScreen
 import com.example.linkup.feature.auth.login.LoginScreen
@@ -51,7 +53,7 @@ private val bottomDestinations = setOf(
 /** Temporary composition root. Only the integration owner should edit this routing file. */
 @Composable
 fun LinkUpApp() {
-    val repository = remember { FakeLinkUpRepository() }
+    val repository: com.example.linkup.data.repository.LinkUpRepository = remember { NetworkLinkUpRepository.create() }
     val navigator = remember { AppNavigator() }
     var current by remember { mutableStateOf(navigator.current) }
     var posts by remember { mutableStateOf(repository.feed()) }
@@ -104,7 +106,7 @@ fun LinkUpApp() {
                     repository.createPost(content); posts = repository.feed(); reset(AppRoute.FEED)
                 }
                 AppRoute.POST_DETAIL -> PostDetailScreen(selectedPost, ::back) { posts = repository.toggleLike(it) }
-                AppRoute.REELS -> ReelsScreen({ goTo(AppRoute.UPLOAD_REEL) }, { reset(AppRoute.PROFILE) })
+                AppRoute.REELS -> ReelsScreen(repository.reels(), { goTo(AppRoute.UPLOAD_REEL) }, { reset(AppRoute.PROFILE) })
                 AppRoute.UPLOAD_REEL -> UploadReelScreen(repository.currentUser(), ::back) { reset(AppRoute.REELS) }
                 AppRoute.PROFILE -> ProfileScreen(repository.currentUser(), { goTo(AppRoute.EDIT_PROFILE) }, { goTo(AppRoute.SETTINGS) })
                 AppRoute.EDIT_PROFILE -> EditProfileScreen(repository.currentUser(), ::back, ::back)

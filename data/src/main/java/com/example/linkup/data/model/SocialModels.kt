@@ -1,5 +1,8 @@
 package com.example.linkup.data.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class User(
     val id: String,
     val name: String,
@@ -8,6 +11,7 @@ data class User(
     val bio: String = ""
 )
 
+@Serializable
 data class Post(
     val id: String,
     val author: User,
@@ -19,6 +23,20 @@ data class Post(
     val liked: Boolean = false
 )
 
+@Serializable
+data class Reel(
+    val id: String,
+    val author: User,
+    val caption: String = "",
+    val videoUrl: String = "",
+    val thumbnailUrl: String? = null,
+    val likes: Int = 0,
+    val comments: Int = 0,
+    val liked: Boolean = false,
+    val audioTitle: String = "original sound"
+)
+
+@Serializable
 data class ChatMessage(
     val id: String,
     val text: String,
@@ -27,6 +45,7 @@ data class ChatMessage(
     val status: String = "SENT"
 )
 
+@Serializable
 data class Conversation(
     val id: String,
     val user: User,
@@ -35,6 +54,7 @@ data class Conversation(
     val unread: Int = 0
 )
 
+@Serializable
 data class NotificationItem(
     val id: String,
     val actor: User,
@@ -42,3 +62,4 @@ data class NotificationItem(
     val time: String,
     val unread: Boolean = true
 )
+

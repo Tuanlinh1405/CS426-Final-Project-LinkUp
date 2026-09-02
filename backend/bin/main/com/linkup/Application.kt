@@ -2,11 +2,9 @@ package com.linkup
 
 import com.linkup.config.EnvConfig
 import com.linkup.database.DatabaseFactory
-import com.linkup.repository.FeedRepository
 import com.linkup.repository.ReelsRepository
 import com.linkup.repository.UserRepository
 import com.linkup.routes.authRoutes
-import com.linkup.routes.feedRoutes
 import com.linkup.routes.reelsRoutes
 import com.linkup.service.JwtService
 import io.ktor.serialization.kotlinx.json.*
@@ -47,7 +45,6 @@ fun Application.module() {
 
     val userRepository = UserRepository()
     val reelsRepository = ReelsRepository()
-    val feedRepository = FeedRepository()
 
     routing {
         get("/") {
@@ -56,10 +53,8 @@ fun Application.module() {
         route("/api/v1") {
             authRoutes(userRepository)
             reelsRoutes(reelsRepository)
-            feedRoutes(feedRepository)
         }
         authRoutes(userRepository)
         reelsRoutes(reelsRepository)
-        feedRoutes(feedRepository)
     }
 }
