@@ -13,6 +13,7 @@ import com.linkup.model.UserSummary
 import com.linkup.model.UserSummaryPage
 import com.linkup.service.FieldError
 import com.linkup.service.ProfileValidationException
+import com.linkup.service.FriendshipStatus
 import com.linkup.service.ProfileValidator
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
@@ -71,9 +72,21 @@ class ProfileRepository {
             followerCount = countFollowers(targetId),
             followingCount = countFollowing(targetId),
             postCount = countPosts(targetId),
+            friendCount = FriendGraph.friendCount(targetId),
             joinedAt = user.createdAt.toString(),
             isMe = isMe,
-            isFollowing = viewerId != null && !isMe && isFollowing(viewerId, targetId)
+            isFollowing = viewerId != null && !isMe && isFollowing(viewerId, targetId),
+            isFollowedBy = viewerId != null && !isMe && isFollowing(targetId, viewerId),
+            friendshipStatus = if (viewerId == null || isMe) {
+                FriendshipStatus.NONE.name
+            } else {
+                FriendGraph.statusBetween(viewerId, targetId).name
+            },
+            mutualFriendCount = if (viewerId == null || isMe) {
+                0
+            } else {
+                FriendGraph.mutualFriendCount(viewerId, targetId)
+            }
         )
     }
 
@@ -281,7 +294,13 @@ class ProfileRepository {
                 avatarUrl = row[ProfilesTable.avatarUrl],
                 bio = row[ProfilesTable.bio],
                 isMe = id == viewerId,
-                isFollowing = id != viewerId && isFollowing(viewerId, id)
+                isFollowing = id != viewerId && isFollowing(viewerId, id),
+                friendshipStatus = if (id == viewerId) {
+                    FriendshipStatus.NONE.name
+                } else {
+                    FriendGraph.statusBetween(viewerId, id).name
+                },
+                mutualFriendCount = if (id == viewerId) 0 else FriendGraph.mutualFriendCount(viewerId, id)
             )
         }
         return UserSummaryPage(
@@ -311,15 +330,11 @@ class ProfileRepository {
             .limit(1).any()
 
     private fun isFollowing(followerId: UUID, targetId: UUID): Boolean =
-        FollowsTable.selectAll()
-            .where { (FollowsTable.followerId eq followerId) and (FollowsTable.followingId eq targetId) }
-            .limit(1).any()
+        FollowGraph.isFollowing(followerId, targetId)
 
-    private fun countFollowers(userId: UUID): Int =
-        FollowsTable.selectAll().where { FollowsTable.followingId eq userId }.count().toInt()
+    private fun countFollowers(userId: UUID): Int = FollowGraph.followerCount(userId)
 
-    private fun countFollowing(userId: UUID): Int =
-        FollowsTable.selectAll().where { FollowsTable.followerId eq userId }.count().toInt()
+    private fun countFollowing(userId: UUID): Int = FollowGraph.followingCount(userId)
 
     private fun countPosts(userId: UUID): Int =
         PostsTable.selectAll().where { PostsTable.authorId eq userId }.count().toInt()

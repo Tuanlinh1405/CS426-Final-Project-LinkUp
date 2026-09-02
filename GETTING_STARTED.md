@@ -28,6 +28,7 @@ Kiểm tra bằng command:
 bash scripts/profile-api-smoke.sh             # end-to-end, cần backend đang chạy
 bash scripts/notifications-api-smoke.sh       # end-to-end, cần backend đang chạy
 bash scripts/discovery-api-smoke.sh           # end-to-end, cần backend đang chạy
+bash scripts/friends-api-smoke.sh             # end-to-end, cần backend đang chạy
 ```
 
 APK debug: `app/build/outputs/apk/debug/app-debug.apk`.
@@ -104,6 +105,21 @@ họ**, bỏ follow thì rút lại, và tài khoản mới đăng ký nhận m�
 - **Followers / Following**: bấm vào số Followers hoặc Following trên trang cá nhân
   (của mình hoặc của người khác) để mở danh sách, có thể follow/unfollow ngay tại đó.
 - Cả hai đều cuộn tới đâu tải tới đó.
+
+## Kết bạn (mới)
+
+Vào từ icon ☺ trên top bar của Feed (có badge số lời mời đang chờ), hoặc bấm vào số
+**Friends** trên trang cá nhân.
+
+- Ba tab: **Friends**, **Requests** (kèm số), **Suggestions** ("người bạn có thể biết",
+  xếp theo số bạn chung).
+- Trên trang cá nhân người khác, nút đổi theo quan hệ: **Add friend** → **Requested**
+  → **Confirm / Delete** → **Friends ▾** (menu có Unfriend).
+- Hiện **số bạn chung** và nhãn **Follows you**.
+- Kết bạn và follow là hai thứ độc lập: có thể follow mà không cần kết bạn.
+- Gửi lời mời sẽ tạo thông báo cho đối phương; huỷ/từ chối/chấp nhận thì thông báo đó
+  cũng được rút lại, không để lại thông báo "mồ côi".
+- Nếu hai người cùng gửi lời mời cho nhau thì tự động thành bạn, không tạo hai dòng.
 
 ## Đăng nhập & đăng xuất
 

@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.linkup.core.designsystem.component.FriendControls
 import com.example.linkup.core.designsystem.theme.LinkDivider
 import com.example.linkup.core.designsystem.theme.LinkMuted
 import com.example.linkup.core.designsystem.theme.LinkPurple
@@ -56,6 +57,7 @@ import com.example.linkup.feature.profile.RemoteAvatar
 import com.example.linkup.feature.profile.StatColumn
 import com.example.linkup.feature.profile.formatBirthdate
 import com.example.linkup.feature.profile.formatJoinedDate
+import com.example.linkup.feature.profile.friendActionState
 
 private val TABS = listOf("Posts", "Reels", "Photos")
 
@@ -80,6 +82,7 @@ fun ProfileScreen(
     onBack: (() -> Unit)? = null,
     onOpenFollowers: (String) -> Unit = {},
     onOpenFollowing: (String) -> Unit = {},
+    onOpenFriends: (String) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -104,7 +107,15 @@ fun ProfileScreen(
                 onToggleFollow = viewModel::toggleFollow,
                 onDismissMessage = viewModel::consumeMessage,
                 onOpenFollowers = onOpenFollowers,
-                onOpenFollowing = onOpenFollowing
+                onOpenFollowing = onOpenFollowing,
+                onOpenFriends = onOpenFriends,
+                onFriendAction = FriendActions(
+                    onAdd = viewModel::sendFriendRequest,
+                    onCancel = viewModel::cancelFriendRequest,
+                    onAccept = viewModel::acceptFriendRequest,
+                    onDecline = viewModel::declineFriendRequest,
+                    onUnfriend = viewModel::unfriend
+                )
             )
         }
     }
@@ -120,7 +131,9 @@ private fun ProfileContent(
     onToggleFollow: () -> Unit,
     onDismissMessage: () -> Unit,
     onOpenFollowers: (String) -> Unit,
-    onOpenFollowing: (String) -> Unit
+    onOpenFollowing: (String) -> Unit,
+    onOpenFriends: (String) -> Unit,
+    onFriendAction: FriendActions
 ) {
     val profile = state.profile
     var tab by remember { mutableStateOf(TABS.first()) }
@@ -144,7 +157,33 @@ private fun ProfileContent(
             }
 
             Text(profile.displayName, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp)
-            Text(profile.handle, color = LinkMuted, fontSize = 14.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(profile.handle, color = LinkMuted, fontSize = 14.sp)
+                if (profile.isFollowedBy) {
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(LinkDivider)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text("Follows you", color = LinkMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            if (!profile.isMe && profile.mutualFriendCount > 0) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = if (profile.mutualFriendCount == 1) {
+                        "1 mutual friend"
+                    } else {
+                        "${profile.mutualFriendCount} mutual friends"
+                    },
+                    color = LinkPurple,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
             val bio = profile.bio
             if (!bio.isNullOrBlank()) {
@@ -157,6 +196,12 @@ private fun ProfileContent(
             Spacer(Modifier.height(4.dp))
             Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                 StatColumn(profile.postCount, "Posts", Modifier.weight(1f))
+                StatColumn(
+                    value = profile.friendCount,
+                    label = "Friends",
+                    modifier = Modifier.weight(1f),
+                    onClick = { onOpenFriends(profile.id) }
+                )
                 StatColumn(
                     value = profile.followerCount,
                     label = "Followers",
@@ -175,9 +220,11 @@ private fun ProfileContent(
             ProfileActions(
                 profile = profile,
                 followInFlight = state.followInFlight,
+                friendActionInFlight = state.friendActionInFlight,
                 onEdit = onEdit,
                 onSettings = onSettings,
-                onToggleFollow = onToggleFollow
+                onToggleFollow = onToggleFollow,
+                onFriendAction = onFriendAction
             )
 
             if (profile.isMe && profile.hasContactDetails) {
@@ -295,13 +342,24 @@ private fun PrivateDetailsCard(profile: Profile) {
     }
 }
 
+/** The five friend callbacks, grouped so the action row keeps a readable signature. */
+data class FriendActions(
+    val onAdd: () -> Unit,
+    val onCancel: () -> Unit,
+    val onAccept: () -> Unit,
+    val onDecline: () -> Unit,
+    val onUnfriend: () -> Unit
+)
+
 @Composable
 private fun ProfileActions(
     profile: Profile,
     followInFlight: Boolean,
+    friendActionInFlight: Boolean,
     onEdit: () -> Unit,
     onSettings: () -> Unit,
-    onToggleFollow: () -> Unit
+    onToggleFollow: () -> Unit,
+    onFriendAction: FriendActions
 ) {
     Row(
         Modifier.fillMaxWidth(),
@@ -325,6 +383,18 @@ private fun ProfileActions(
                 Text("⚙", fontSize = 16.sp)
             }
         } else {
+            // Friendship is the primary relationship, so it leads; following is
+            // secondary and independent — you can follow someone without friending them.
+            FriendControls(
+                state = profile.friendship.friendActionState(),
+                isBusy = friendActionInFlight,
+                compact = false,
+                onAdd = onFriendAction.onAdd,
+                onCancel = onFriendAction.onCancel,
+                onAccept = onFriendAction.onAccept,
+                onDecline = onFriendAction.onDecline,
+                onUnfriend = onFriendAction.onUnfriend
+            )
             Button(
                 onClick = onToggleFollow,
                 enabled = !followInFlight,
@@ -336,13 +406,6 @@ private fun ProfileActions(
                 )
             ) {
                 Text(if (profile.isFollowing) "Following" else "Follow", fontWeight = FontWeight.Bold)
-            }
-            OutlinedButton(
-                onClick = { },
-                modifier = Modifier.weight(1f).height(44.dp),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Text("Message")
             }
         }
     }

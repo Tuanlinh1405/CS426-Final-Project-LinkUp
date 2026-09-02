@@ -2,7 +2,10 @@ package com.example.linkup.feature.more.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.linkup.data.model.FriendshipState
+import com.example.linkup.data.model.FriendshipStatus
 import com.example.linkup.data.model.UserSummary
+import com.example.linkup.data.repository.FriendRepository
 import com.example.linkup.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -35,7 +38,8 @@ data class SearchUiState(
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val friendRepository: FriendRepository
 ) : ViewModel() {
 
     private companion object {
@@ -124,6 +128,72 @@ class SearchViewModel @Inject constructor(
                             },
                             busyIds = state.busyIds - user.id,
                             message = error.message ?: "Could not update follow state"
+                        )
+                    }
+                }
+        }
+    }
+
+    fun sendRequest(user: UserSummary) =
+        friendAction(user, FriendshipStatus.REQUEST_SENT) { friendRepository.sendRequest(it) }
+
+    fun cancelRequest(user: UserSummary) =
+        friendAction(user, FriendshipStatus.NONE) { friendRepository.cancelRequest(it) }
+
+    fun accept(user: UserSummary) =
+        friendAction(user, FriendshipStatus.FRIENDS) { friendRepository.accept(it) }
+
+    fun decline(user: UserSummary) =
+        friendAction(user, FriendshipStatus.NONE) { friendRepository.decline(it) }
+
+    fun unfriend(user: UserSummary) =
+        friendAction(user, FriendshipStatus.NONE) { friendRepository.unfriend(it) }
+
+    /** Optimistic friend action on a search result, reverted if the server refuses. */
+    private fun friendAction(
+        user: UserSummary,
+        optimistic: FriendshipStatus,
+        action: suspend (String) -> Result<FriendshipState>
+    ) {
+        if (user.isMe || user.id in _uiState.value.busyIds) return
+        val previous = user.friendship
+
+        _uiState.update { state ->
+            state.copy(
+                results = state.results.map {
+                    if (it.id == user.id) it.copy(friendship = optimistic) else it
+                },
+                busyIds = state.busyIds + user.id
+            )
+        }
+
+        viewModelScope.launch {
+            action(user.id)
+                .onSuccess { result ->
+                    _uiState.update { state ->
+                        state.copy(
+                            results = state.results.map {
+                                if (it.id == user.id) {
+                                    it.copy(
+                                        friendship = result.status,
+                                        mutualFriendCount = result.mutualFriendCount
+                                    )
+                                } else {
+                                    it
+                                }
+                            },
+                            busyIds = state.busyIds - user.id
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update { state ->
+                        state.copy(
+                            results = state.results.map {
+                                if (it.id == user.id) it.copy(friendship = previous) else it
+                            },
+                            busyIds = state.busyIds - user.id,
+                            message = error.message ?: "That didn't work"
                         )
                     }
                 }

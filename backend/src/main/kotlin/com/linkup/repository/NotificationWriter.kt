@@ -14,6 +14,8 @@ enum class NotificationType {
     COMMENT,
     MENTION,
     MESSAGE,
+    FRIEND_REQUEST,
+    FRIEND_ACCEPT,
     DATING_MATCH,
     SYSTEM
 }
@@ -56,6 +58,43 @@ object NotificationWriter {
     }
 
     /**
+     * Tells [recipientId] that [actorId] wants to be friends.
+     *
+     * Replaces any earlier request notification from the same person, so a
+     * cancel-and-resend cannot stack up rows.
+     */
+    fun recordFriendRequest(actorId: UUID, recipientId: UUID) {
+        if (actorId == recipientId) return
+        remove(actorId, recipientId, NotificationType.FRIEND_REQUEST)
+        insert(actorId, recipientId, NotificationType.FRIEND_REQUEST, targetId = actorId)
+    }
+
+    /**
+     * Tells the original requester that [actorId] accepted.
+     *
+     * The request notification in the accepter's own inbox is dropped at the call
+     * site: it has been acted on, and leaving it there invites a second response.
+     */
+    fun recordFriendAccept(actorId: UUID, recipientId: UUID) {
+        if (actorId == recipientId) return
+        remove(actorId, recipientId, NotificationType.FRIEND_ACCEPT)
+        insert(actorId, recipientId, NotificationType.FRIEND_ACCEPT, targetId = actorId)
+    }
+
+    /** Withdraws a request notification when the request itself goes away. */
+    fun removeFriendRequest(actorId: UUID, recipientId: UUID) {
+        remove(actorId, recipientId, NotificationType.FRIEND_REQUEST)
+    }
+
+    /** Clears every friend notification between two people, in both directions. */
+    fun removeFriendNotifications(a: UUID, b: UUID) {
+        listOf(NotificationType.FRIEND_REQUEST, NotificationType.FRIEND_ACCEPT).forEach { type ->
+            remove(a, b, type)
+            remove(b, a, type)
+        }
+    }
+
+    /**
      * Greets a newly registered user.
      *
      * The actor is the user themselves: `notifications.actor_id` is NOT NULL, and a
@@ -68,6 +107,24 @@ object NotificationWriter {
             it[type] = NotificationType.SYSTEM.name
             it[targetId] = null
             it[isRead] = false
+        }
+    }
+
+    private fun insert(actor: UUID, recipient: UUID, type: NotificationType, targetId: UUID?) {
+        NotificationsTable.insert {
+            it[recipientId] = recipient
+            it[actorId] = actor
+            it[NotificationsTable.type] = type.name
+            it[NotificationsTable.targetId] = targetId
+            it[isRead] = false
+        }
+    }
+
+    private fun remove(actor: UUID, recipient: UUID, type: NotificationType) {
+        NotificationsTable.deleteWhere {
+            (NotificationsTable.recipientId eq recipient) and
+                (NotificationsTable.actorId eq actor) and
+                (NotificationsTable.type eq type.name)
         }
     }
 }

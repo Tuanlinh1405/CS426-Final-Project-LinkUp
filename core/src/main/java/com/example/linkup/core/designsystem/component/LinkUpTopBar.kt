@@ -59,16 +59,21 @@ fun LinkUpTopBar(
     onSearch: () -> Unit,
     onNotifications: () -> Unit,
     onAi: () -> Unit,
-    unreadNotifications: Int = 0
+    unreadNotifications: Int = 0,
+    onFriends: (() -> Unit)? = null,
+    pendingFriendRequests: Int = 0
 ) {
     Surface(shadowElevation = 1.dp) {
         Row(
             modifier = Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("LinkUp", color = LinkPurple, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, modifier = Modifier.weight(1f))
             TopAction("⌕", onSearch)
+            if (onFriends != null) {
+                TopAction("☺", onFriends, badgeCount = pendingFriendRequests)
+            }
             TopAction("♢", onNotifications, badgeCount = unreadNotifications)
             TopAction("AI", onAi)
         }

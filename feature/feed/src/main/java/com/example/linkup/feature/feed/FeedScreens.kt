@@ -64,10 +64,19 @@ fun FeedScreen(
     onSearch: () -> Unit,
     onNotifications: () -> Unit,
     onAi: () -> Unit,
-    unreadNotifications: Int = 0
+    unreadNotifications: Int = 0,
+    onFriends: (() -> Unit)? = null,
+    pendingFriendRequests: Int = 0
 ) {
     Column(Modifier.fillMaxSize().background(LinkCanvas)) {
-        LinkUpTopBar(onSearch, onNotifications, onAi, unreadNotifications)
+        LinkUpTopBar(
+            onSearch = onSearch,
+            onNotifications = onNotifications,
+            onAi = onAi,
+            unreadNotifications = unreadNotifications,
+            onFriends = onFriends,
+            pendingFriendRequests = pendingFriendRequests
+        )
         LazyColumn(Modifier.fillMaxSize()) {
             item {
                 Row(

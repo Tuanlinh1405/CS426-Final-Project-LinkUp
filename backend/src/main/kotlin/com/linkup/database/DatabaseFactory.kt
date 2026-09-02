@@ -42,6 +42,7 @@ object DatabaseFactory {
                 RefreshTokensTable,
                 ProfilesTable,
                 FollowsTable,
+                FriendshipsTable,
                 MediaTable,
                 PostsTable,
                 PostMediaTable,

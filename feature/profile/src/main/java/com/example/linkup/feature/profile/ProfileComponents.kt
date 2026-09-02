@@ -31,10 +31,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.linkup.core.designsystem.component.FriendActionState
 import com.example.linkup.core.designsystem.theme.LinkDivider
 import com.example.linkup.core.designsystem.theme.LinkMuted
 import com.example.linkup.core.designsystem.theme.LinkPurple
 import com.example.linkup.core.designsystem.theme.LinkPurpleSoft
+import com.example.linkup.data.model.FriendshipStatus
 
 /** Gradient used whenever a user has not set a cover photo. */
 internal val CoverFallbackBrush = Brush.linearGradient(
@@ -301,4 +303,17 @@ fun formatBirthdate(iso: String): String? {
     val day = parts[2].toIntOrNull() ?: return null
     if (month !in 1..12) return null
     return "$day ${MONTHS[month - 1]} $year"
+}
+
+/**
+ * Maps the domain relationship onto the design-system control.
+ *
+ * [FriendshipStatus.UNKNOWN] — a state this build does not recognise — falls back to
+ * ADD rather than rendering nothing, so a newer backend cannot produce a dead row.
+ */
+fun FriendshipStatus.friendActionState(): FriendActionState = when (this) {
+    FriendshipStatus.FRIENDS -> FriendActionState.FRIENDS
+    FriendshipStatus.REQUEST_SENT -> FriendActionState.REQUESTED
+    FriendshipStatus.REQUEST_RECEIVED -> FriendActionState.RESPOND
+    FriendshipStatus.NONE, FriendshipStatus.UNKNOWN -> FriendActionState.ADD
 }

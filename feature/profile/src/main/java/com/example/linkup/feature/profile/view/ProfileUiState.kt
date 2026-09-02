@@ -13,6 +13,7 @@ sealed interface ProfileUiState {
         val profile: Profile,
         val isRefreshing: Boolean = false,
         val followInFlight: Boolean = false,
+        val friendActionInFlight: Boolean = false,
         /** Transient feedback shown as an inline banner. */
         val message: String? = null
     ) : ProfileUiState

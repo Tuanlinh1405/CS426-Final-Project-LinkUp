@@ -25,9 +25,15 @@ data class ProfileResponse(
     val followerCount: Int = 0,
     val followingCount: Int = 0,
     val postCount: Int = 0,
+    val friendCount: Int = 0,
     val joinedAt: String,
     val isMe: Boolean = false,
-    val isFollowing: Boolean = false
+    val isFollowing: Boolean = false,
+    /** True when they follow the viewer — drives the "Follows you" badge. */
+    val isFollowedBy: Boolean = false,
+    /** NONE | REQUEST_SENT | REQUEST_RECEIVED | FRIENDS, from the viewer's side. */
+    val friendshipStatus: String = "NONE",
+    val mutualFriendCount: Int = 0
 )
 
 /**
@@ -82,7 +88,9 @@ data class UserSummary(
     val avatarUrl: String? = null,
     val bio: String? = null,
     val isMe: Boolean = false,
-    val isFollowing: Boolean = false
+    val isFollowing: Boolean = false,
+    val friendshipStatus: String = "NONE",
+    val mutualFriendCount: Int = 0
 )
 
 /** Cursor-paged list of people. */
@@ -91,4 +99,14 @@ data class UserSummaryPage(
     val items: List<UserSummary>,
     val nextCursor: String? = null,
     val total: Int = 0
+)
+
+/** Result of any friend action, so the client can re-render without refetching. */
+@Serializable
+data class FriendshipStateResponse(
+    val status: String,
+    val friendCount: Int = 0,
+    val mutualFriendCount: Int = 0,
+    /** Pending requests waiting on the caller — drives the Requests tab badge. */
+    val incomingRequestCount: Int = 0
 )

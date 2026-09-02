@@ -2,7 +2,9 @@ package com.example.linkup.feature.profile.view
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.linkup.data.model.FriendshipStatus
 import com.example.linkup.data.model.Profile
+import com.example.linkup.data.repository.FriendRepository
 import com.example.linkup.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val friendRepository: FriendRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
@@ -88,6 +91,67 @@ class ProfileViewModel @Inject constructor(
                 }
         }
     }
+
+    /**
+     * Runs a friend action against the profile on screen.
+     *
+     * The button switches immediately to [optimistic] and reverts if the server
+     * disagrees — a friend request should feel instant, but the control must never
+     * end up claiming a relationship that was not actually created.
+     */
+    private fun friendAction(
+        optimistic: FriendshipStatus,
+        action: suspend (String) -> Result<com.example.linkup.data.model.FriendshipState>
+    ) {
+        val current = _uiState.value as? ProfileUiState.Ready ?: return
+        if (current.profile.isMe || current.friendActionInFlight) return
+        val previous = current.profile.friendship
+
+        _uiState.value = current.copy(
+            profile = current.profile.copy(friendship = optimistic),
+            friendActionInFlight = true,
+            message = null
+        )
+
+        viewModelScope.launch {
+            action(current.profile.id)
+                .onSuccess { result ->
+                    _uiState.update { state ->
+                        (state as? ProfileUiState.Ready)?.copy(
+                            profile = state.profile.copy(
+                                friendship = result.status,
+                                mutualFriendCount = result.mutualFriendCount
+                            ),
+                            friendActionInFlight = false
+                        ) ?: state
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update { state ->
+                        (state as? ProfileUiState.Ready)?.copy(
+                            profile = state.profile.copy(friendship = previous),
+                            friendActionInFlight = false,
+                            message = error.message ?: "Could not update that"
+                        ) ?: state
+                    }
+                }
+        }
+    }
+
+    fun sendFriendRequest() =
+        friendAction(FriendshipStatus.REQUEST_SENT) { friendRepository.sendRequest(it) }
+
+    fun cancelFriendRequest() =
+        friendAction(FriendshipStatus.NONE) { friendRepository.cancelRequest(it) }
+
+    fun acceptFriendRequest() =
+        friendAction(FriendshipStatus.FRIENDS) { friendRepository.accept(it) }
+
+    fun declineFriendRequest() =
+        friendAction(FriendshipStatus.NONE) { friendRepository.decline(it) }
+
+    fun unfriend() =
+        friendAction(FriendshipStatus.NONE) { friendRepository.unfriend(it) }
 
     /** Clears cached state on logout so the next account never sees the last one's data. */
     fun reset() {

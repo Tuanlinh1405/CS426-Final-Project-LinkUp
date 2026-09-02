@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.linkup.core.designsystem.component.FollowPill
 import com.example.linkup.core.designsystem.component.PersonRow
 import com.example.linkup.core.designsystem.component.PersonRowSkeleton
 import com.example.linkup.core.designsystem.component.ScreenHeader
@@ -108,10 +109,14 @@ fun UserListScreen(
                         avatarUrl = person.avatarUrl,
                         subtitle = person.bio,
                         isMe = person.isMe,
-                        isFollowing = person.isFollowing,
-                        isBusy = person.id in state.busyIds,
                         onClick = { onOpenProfile(person.id) },
-                        onToggleFollow = { viewModel.toggleFollow(person) }
+                        trailing = {
+                            FollowPill(
+                                isFollowing = person.isFollowing,
+                                isBusy = person.id in state.busyIds,
+                                onClick = { viewModel.toggleFollow(person) }
+                            )
+                        }
                     )
                     HorizontalDivider(color = LinkDivider.copy(alpha = 0.6f))
                 }

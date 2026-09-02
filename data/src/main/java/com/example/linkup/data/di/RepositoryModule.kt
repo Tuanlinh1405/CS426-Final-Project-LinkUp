@@ -2,6 +2,8 @@ package com.example.linkup.data.di
 
 import com.example.linkup.data.repository.AuthRepository
 import com.example.linkup.data.repository.AuthRepositoryImpl
+import com.example.linkup.data.repository.FriendRepository
+import com.example.linkup.data.repository.FriendRepositoryImpl
 import com.example.linkup.data.repository.NotificationRepository
 import com.example.linkup.data.repository.NotificationRepositoryImpl
 import com.example.linkup.data.repository.ProfileRepository
@@ -33,4 +35,10 @@ abstract class RepositoryModule {
     abstract fun bindNotificationRepository(
         notificationRepositoryImpl: NotificationRepositoryImpl
     ): NotificationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFriendRepository(
+        friendRepositoryImpl: FriendRepositoryImpl
+    ): FriendRepository
 }

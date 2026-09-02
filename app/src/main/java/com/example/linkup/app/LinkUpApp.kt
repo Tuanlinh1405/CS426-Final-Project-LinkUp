@@ -41,6 +41,8 @@ import com.example.linkup.feature.more.search.SearchScreen
 import com.example.linkup.feature.more.search.SearchViewModel
 import com.example.linkup.feature.more.SettingsScreen
 import com.example.linkup.feature.profile.edit.EditProfileScreen
+import com.example.linkup.feature.profile.friends.FriendsScreen
+import com.example.linkup.feature.profile.friends.FriendsViewModel
 import com.example.linkup.feature.profile.people.UserListMode
 import com.example.linkup.feature.profile.people.UserListScreen
 import com.example.linkup.feature.profile.people.UserListViewModel
@@ -70,6 +72,8 @@ fun LinkUpApp() {
     // Hoisted so logout can clear it; otherwise this activity-scoped model would hand
     // the next account the previous user's profile.
     val profileViewModel: ProfileViewModel = hiltViewModel()
+    val friendsViewModel: FriendsViewModel = hiltViewModel()
+    val friendsState by friendsViewModel.uiState.collectAsState()
     val searchViewModel: SearchViewModel = hiltViewModel()
     val userListViewModel: UserListViewModel = hiltViewModel()
     val sessionViewModel: SessionViewModel = hiltViewModel()
@@ -105,7 +109,10 @@ fun LinkUpApp() {
 
     // Keep the badge honest whenever the user lands somewhere that shows it.
     LaunchedEffect(current) {
-        if (current == AppRoute.FEED) notificationsViewModel.refreshUnreadCount()
+        if (current == AppRoute.FEED) {
+            notificationsViewModel.refreshUnreadCount()
+            friendsViewModel.refreshCounts()
+        }
     }
     BackHandler(enabled = current !in setOf(AppRoute.SPLASH, AppRoute.LOGIN, AppRoute.FEED)) { back() }
 
@@ -151,7 +158,9 @@ fun LinkUpApp() {
                     onSearch = { goTo(AppRoute.SEARCH) },
                     onNotifications = { goTo(AppRoute.NOTIFICATIONS) },
                     onAi = { goTo(AppRoute.AI_CHAT) },
-                    unreadNotifications = notificationsState.unreadCount
+                    unreadNotifications = notificationsState.unreadCount,
+                    onFriends = { goTo(AppRoute.FRIENDS) },
+                    pendingFriendRequests = friendsState.requestCount
                 )
                 AppRoute.CREATE_POST -> CreatePostScreen(repository.currentUser(), ::back) { content ->
                     repository.createPost(content); posts = repository.feed(); reset(AppRoute.FEED)
@@ -166,7 +175,13 @@ fun LinkUpApp() {
                     onBack = if (currentArg != null) ::back else null,
                     onOpenFollowers = { id -> goTo(AppRoute.FOLLOWERS, id) },
                     onOpenFollowing = { id -> goTo(AppRoute.FOLLOWING, id) },
+                    onOpenFriends = { goTo(AppRoute.FRIENDS) },
                     viewModel = profileViewModel
+                )
+                AppRoute.FRIENDS -> FriendsScreen(
+                    onBack = ::back,
+                    onOpenProfile = { id -> goTo(AppRoute.PROFILE, id) },
+                    viewModel = friendsViewModel
                 )
                 AppRoute.FOLLOWERS -> UserListScreen(
                     mode = UserListMode.FOLLOWERS,
@@ -212,6 +227,7 @@ fun LinkUpApp() {
                         notificationsViewModel.reset()
                         searchViewModel.reset()
                         userListViewModel.reset()
+                        friendsViewModel.reset()
                         reset(AppRoute.LOGIN)
                     },
                     onDatingProfile = { goTo(AppRoute.DATING_PROFILE) }

@@ -60,6 +60,27 @@ object FollowsTable : Table("follows") {
     }
 }
 
+/**
+ * Friendship and friend requests in one table.
+ *
+ * A row is a request while `status = PENDING` and a friendship once ACCEPTED, so
+ * there is exactly one row per pair and no way for the two to disagree. Direction is
+ * kept (who asked) because the UI needs it: the requester sees "Requested", the
+ * addressee sees "Respond". Membership questions therefore check both directions.
+ */
+object FriendshipsTable : UUIDTable("friendships") {
+    val requesterId = reference("requester_id", UsersTable, onDelete = ReferenceOption.CASCADE)
+    val addresseeId = reference("addressee_id", UsersTable, onDelete = ReferenceOption.CASCADE)
+    val status = varchar("status", 20).default("PENDING")
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    val respondedAt = timestamp("responded_at").nullable()
+
+    init {
+        uniqueIndex(requesterId, addresseeId)
+        check("cannot_friend_self") { requesterId neq addresseeId }
+    }
+}
+
 /** 3. Media Storage Metadata */
 object MediaTable : UUIDTable("media") {
     val ownerId = reference("owner_id", UsersTable, onDelete = ReferenceOption.CASCADE)

@@ -40,6 +40,8 @@ internal fun accentFor(type: NotificationType): TypeAccent = when (type) {
     NotificationType.COMMENT -> TypeAccent("❝", Color(0xFF2F80ED))
     NotificationType.MENTION -> TypeAccent("@", Color(0xFF00A08A))
     NotificationType.MESSAGE -> TypeAccent("✉", Color(0xFF2F80ED))
+    NotificationType.FRIEND_REQUEST -> TypeAccent("☺", Color(0xFF7C3AED))
+    NotificationType.FRIEND_ACCEPT -> TypeAccent("✓", Color(0xFF1B7A43))
     NotificationType.DATING_MATCH -> TypeAccent("♡", Color(0xFFE73C91))
     NotificationType.SYSTEM -> TypeAccent("★", Color(0xFF7C3AED))
     NotificationType.UNKNOWN -> TypeAccent("•", Color(0xFF777286))
@@ -132,6 +134,8 @@ private fun actionPhrase(type: NotificationType): String = when (type) {
     NotificationType.COMMENT -> "commented on your post."
     NotificationType.MENTION -> "mentioned you in a post."
     NotificationType.MESSAGE -> "sent you a message."
+    NotificationType.FRIEND_REQUEST -> "sent you a friend request."
+    NotificationType.FRIEND_ACCEPT -> "accepted your friend request."
     NotificationType.DATING_MATCH -> "is a new match."
     // An unfamiliar type still reads as a sentence rather than a blank row.
     NotificationType.SYSTEM, NotificationType.UNKNOWN -> "sent you a notification."

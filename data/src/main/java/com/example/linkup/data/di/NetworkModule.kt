@@ -1,6 +1,7 @@
 package com.example.linkup.data.di
 
 import com.example.linkup.data.remote.api.AuthApiService
+import com.example.linkup.data.remote.api.FriendApiService
 import com.example.linkup.data.remote.api.NotificationApiService
 import com.example.linkup.data.remote.api.ProfileApiService
 import com.example.linkup.data.remote.interceptor.AuthInterceptor
@@ -73,5 +74,11 @@ object NetworkModule {
     @Singleton
     fun provideNotificationApiService(retrofit: Retrofit): NotificationApiService {
         return retrofit.create(NotificationApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFriendApiService(retrofit: Retrofit): FriendApiService {
+        return retrofit.create(FriendApiService::class.java)
     }
 }

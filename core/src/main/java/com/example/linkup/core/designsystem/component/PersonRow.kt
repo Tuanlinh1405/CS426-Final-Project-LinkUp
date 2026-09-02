@@ -76,10 +76,12 @@ fun CircleAvatar(
 }
 
 /**
- * One person in a list, with an optional follow control.
+ * One person in a list.
  *
- * Shared by search results and the follower/following lists so both read identically.
- * [isMe] hides the button — an account cannot follow itself.
+ * The trailing control is a slot rather than a fixed button: follower lists want a
+ * follow toggle, friend lists want Confirm/Delete, and search wants Add friend. The
+ * slot keeps all of that out of `core`, which has no idea what a friendship is.
+ * [isMe] replaces the slot with a "You" label — you are never an action on yourself.
  */
 @Composable
 fun PersonRow(
@@ -90,10 +92,8 @@ fun PersonRow(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     isMe: Boolean = false,
-    isFollowing: Boolean = false,
-    isBusy: Boolean = false,
     onClick: () -> Unit = {},
-    onToggleFollow: (() -> Unit)? = null
+    trailing: (@Composable () -> Unit)? = null
 ) {
     Row(
         modifier
@@ -127,9 +127,54 @@ fun PersonRow(
 
         if (isMe) {
             Text("You", color = LinkMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        } else if (onToggleFollow != null) {
+        } else if (trailing != null) {
             Spacer(Modifier.width(8.dp))
-            FollowPill(isFollowing = isFollowing, isBusy = isBusy, onClick = onToggleFollow)
+            trailing()
+        }
+    }
+}
+
+/**
+ * Compact action button used in list rows.
+ *
+ * @param filled a solid purple call to action; outlined is the "already done" state.
+ * @param danger red text for destructive choices such as declining a request.
+ */
+@Composable
+fun ActionPill(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    filled: Boolean = true,
+    danger: Boolean = false,
+    isBusy: Boolean = false,
+    enabled: Boolean = true
+) {
+    val content = when {
+        danger -> Color(0xFFB3261E)
+        filled -> Color.White
+        else -> LinkPurple
+    }
+    val background = if (filled && !danger) LinkPurple else Color.White
+    val border = when {
+        danger -> LinkDivider
+        filled -> LinkPurple
+        else -> LinkDivider
+    }
+
+    Box(
+        modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (enabled) background else background.copy(alpha = 0.5f))
+            .border(1.dp, border, RoundedCornerShape(50))
+            .clickable(enabled = enabled && !isBusy, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isBusy) {
+            CircularProgressIndicator(strokeWidth = 2.dp, color = content, modifier = Modifier.size(14.dp))
+        } else {
+            Text(text, color = content, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
         }
     }
 }

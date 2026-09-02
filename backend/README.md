@@ -36,6 +36,7 @@ Start the backend **before** launching the app — the app cannot start it.
 bash scripts/profile-api-smoke.sh             # end-to-end, needs the server running
 bash scripts/notifications-api-smoke.sh       # end-to-end, needs the server running
 bash scripts/discovery-api-smoke.sh           # end-to-end, needs the server running
+bash scripts/friends-api-smoke.sh             # end-to-end, needs the server running
 ```
 
 The smoke script registers throwaway users, so point it at a dev database.
@@ -125,6 +126,45 @@ as the action that caused them:
 the feed, chat and dating features land. Call `NotificationWriter` from those features
 when they do — the client already handles every type, and an unrecognised one degrades
 to a readable row rather than disappearing.
+
+### Friends
+
+Friendship is mutual and negotiated; following is one-sided and immediate. Both exist
+and are independent — you can follow someone you are not friends with, and vice versa.
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| `GET` | `/friends` | `?of=` to view someone else's friends |
+| `GET` | `/friends/requests/incoming` | Requests waiting on you |
+| `GET` | `/friends/requests/outgoing` | Requests you sent |
+| `GET` | `/friends/requests/count` | Badge figure |
+| `GET` | `/friends/suggestions` | "People you may know", ranked by mutual friends |
+| `GET` | `/friends/{id}/state` | → `{status, friendCount, mutualFriendCount, incomingRequestCount}` |
+| `POST` | `/friends/{id}/request` | Send a request |
+| `DELETE` | `/friends/{id}/request` | Withdraw your request |
+| `PUT` | `/friends/{id}/accept` | Accept a request sent to you |
+| `PUT` | `/friends/{id}/decline` | Decline a request sent to you |
+| `DELETE` | `/friends/{id}` | Unfriend |
+
+`status` is one of `NONE`, `REQUEST_SENT`, `REQUEST_RECEIVED`, `FRIENDS`, always from
+the caller's side. A rule violation returns **409** with the reason in `message`.
+
+**One row per pair.** `friendships` holds the request and the friendship in the same
+row: it is a request while `status = PENDING` and a friendship once `ACCEPTED`, so the
+two can never disagree. Direction is kept because the UI needs it — the requester sees
+"Requested", the addressee sees "Confirm".
+
+The awkward cases live in `FriendshipRules`, which is pure and unit tested:
+
+- Requesting someone **who already requested you** accepts their request rather than
+  creating a second row.
+- Requesting twice is a **no-op**, not an error.
+- Only the addressee may accept or decline; only the requester may cancel.
+- Declining **deletes** the row, so they may ask again later.
+
+Notifications follow the action inside the same transaction: `FRIEND_REQUEST` on send,
+`FRIEND_ACCEPT` on acceptance, and the request notification is **withdrawn** when the
+request is cancelled, declined or accepted — a notification never outlives its request.
 
 ### Media
 

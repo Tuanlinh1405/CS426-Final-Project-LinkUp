@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.linkup.core.designsystem.component.ChoiceChip
 import com.example.linkup.core.designsystem.component.LinkUpField
+import com.example.linkup.core.designsystem.component.FriendActionState
+import com.example.linkup.core.designsystem.component.FriendControls
 import com.example.linkup.core.designsystem.component.PersonRow
 import com.example.linkup.core.designsystem.component.PersonRowSkeleton
 import com.example.linkup.core.designsystem.component.ScreenHeader
@@ -47,6 +49,7 @@ import com.example.linkup.core.designsystem.theme.LinkDivider
 import com.example.linkup.core.designsystem.theme.LinkMuted
 import com.example.linkup.core.designsystem.theme.LinkPurple
 import com.example.linkup.core.designsystem.theme.LinkPurpleSoft
+import com.example.linkup.data.model.FriendshipStatus
 
 private val TABS = listOf("People", "Posts", "Reels")
 
@@ -130,12 +133,24 @@ fun SearchScreen(
                         handle = person.handle,
                         initials = person.initials,
                         avatarUrl = person.avatarUrl,
-                        subtitle = person.bio,
+                        subtitle = when {
+                            person.mutualFriendCount == 1 -> "1 mutual friend"
+                            person.mutualFriendCount > 1 -> "${person.mutualFriendCount} mutual friends"
+                            else -> person.bio
+                        },
                         isMe = person.isMe,
-                        isFollowing = person.isFollowing,
-                        isBusy = person.id in state.busyIds,
                         onClick = { onOpenProfile(person.id) },
-                        onToggleFollow = { viewModel.toggleFollow(person) }
+                        trailing = {
+                            FriendControls(
+                                state = person.friendship.toFriendActionState(),
+                                isBusy = person.id in state.busyIds,
+                                onAdd = { viewModel.sendRequest(person) },
+                                onCancel = { viewModel.cancelRequest(person) },
+                                onAccept = { viewModel.accept(person) },
+                                onDecline = { viewModel.decline(person) },
+                                onUnfriend = { viewModel.unfriend(person) }
+                            )
+                        }
                     )
                     HorizontalDivider(color = LinkDivider.copy(alpha = 0.6f))
                 }
@@ -235,4 +250,17 @@ private fun CenteredState(glyph: String, title: String, body: String) {
         Spacer(Modifier.height(8.dp))
         Text(body, color = LinkMuted, fontSize = 13.sp, textAlign = TextAlign.Center)
     }
+}
+
+/**
+ * Maps the domain relationship onto the design-system control.
+ *
+ * An unrecognised status falls back to ADD so a newer backend cannot leave a row
+ * with no usable action.
+ */
+private fun FriendshipStatus.toFriendActionState(): FriendActionState = when (this) {
+    FriendshipStatus.FRIENDS -> FriendActionState.FRIENDS
+    FriendshipStatus.REQUEST_SENT -> FriendActionState.REQUESTED
+    FriendshipStatus.REQUEST_RECEIVED -> FriendActionState.RESPOND
+    FriendshipStatus.NONE, FriendshipStatus.UNKNOWN -> FriendActionState.ADD
 }

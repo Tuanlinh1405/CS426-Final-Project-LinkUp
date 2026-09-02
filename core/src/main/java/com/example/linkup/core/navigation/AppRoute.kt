@@ -14,6 +14,7 @@ enum class AppRoute {
     EDIT_PROFILE,
     FOLLOWERS,
     FOLLOWING,
+    FRIENDS,
     SEARCH,
     NOTIFICATIONS,
     CHAT_LIST,

@@ -17,9 +17,13 @@ data class Profile(
     val followerCount: Int,
     val followingCount: Int,
     val postCount: Int,
+    val friendCount: Int,
     val joinedAt: String,
     val isMe: Boolean,
-    val isFollowing: Boolean
+    val isFollowing: Boolean,
+    val isFollowedBy: Boolean,
+    val friendship: FriendshipStatus,
+    val mutualFriendCount: Int
 ) {
     /** Falls back to the username so the header is never blank. */
     val displayName: String get() = fullName?.takeIf { it.isNotBlank() } ?: username
@@ -100,7 +104,9 @@ data class UserSummary(
     val avatarUrl: String?,
     val bio: String?,
     val isMe: Boolean,
-    val isFollowing: Boolean
+    val isFollowing: Boolean,
+    val friendship: FriendshipStatus = FriendshipStatus.NONE,
+    val mutualFriendCount: Int = 0
 ) {
     val displayName: String get() = fullName?.takeIf { it.isNotBlank() } ?: username
 
@@ -120,4 +126,33 @@ data class UserSummaryPage(
     val items: List<UserSummary>,
     val nextCursor: String?,
     val total: Int
+)
+
+/**
+ * The relationship between the signed-in user and someone else.
+ *
+ * [UNKNOWN] keeps the app forward compatible if the backend ever adds a state
+ * (blocked, for instance) that this build does not know about.
+ */
+enum class FriendshipStatus {
+    NONE,
+    REQUEST_SENT,
+    REQUEST_RECEIVED,
+    FRIENDS,
+    UNKNOWN;
+
+    val isFriend: Boolean get() = this == FRIENDS
+
+    companion object {
+        fun from(raw: String?): FriendshipStatus =
+            entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } ?: UNKNOWN
+    }
+}
+
+/** Result of a friend action. */
+data class FriendshipState(
+    val status: FriendshipStatus,
+    val friendCount: Int,
+    val mutualFriendCount: Int,
+    val incomingRequestCount: Int
 )

@@ -12,6 +12,8 @@ enum class NotificationType {
     COMMENT,
     MENTION,
     MESSAGE,
+    FRIEND_REQUEST,
+    FRIEND_ACCEPT,
     DATING_MATCH,
     SYSTEM,
     UNKNOWN;
@@ -58,7 +60,11 @@ data class Notification(
     /** What tapping this row should open, or null when it goes nowhere. */
     val destinationUserId: String?
         get() = when (type) {
-            NotificationType.FOLLOW -> targetId ?: actor.id
+            // All three lead to the person who acted; the profile is where you
+            // accept a request or follow back.
+            NotificationType.FOLLOW,
+            NotificationType.FRIEND_REQUEST,
+            NotificationType.FRIEND_ACCEPT -> targetId ?: actor.id
             else -> null
         }
 }
