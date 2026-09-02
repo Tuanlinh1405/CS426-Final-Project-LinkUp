@@ -27,7 +27,10 @@ object RefreshTokensTable : UUIDTable("refresh_tokens") {
 }
 
 /** 2. Profiles & Following */
-object ProfilesTable : UUIDTable("profiles") {
+object ProfilesTable : UUIDTable("profiles", "user_id") {
+    init {
+        id.references(UsersTable.id, onDelete = ReferenceOption.CASCADE)
+    }
     val bio = text("bio").nullable()
     val avatarUrl = text("avatar_url").nullable()
     val coverUrl = text("cover_url").nullable()

@@ -1,14 +1,15 @@
 # LinkUp — chạy và kiểm tra prototype
 
-Prototype Jetpack Compose dựa trên `Design UI/LinkUp.png`. App hiện chạy bằng mock 
-data để team kiểm tra UI, navigation và chia feature trước khi kết nối 
-Ktor/PostgreSQL/MinIO.
+Prototype Jetpack Compose dựa trên `Design UI/LinkUp.png`. Đăng ký/đăng nhập hiện gọi
+backend Ktor thật; các màn social còn dùng mock data. Backend kết nối PostgreSQL
+trên Supabase. Xem `backend/README.md` để dùng `backend/.env` kết nối database có sẵn và chạy server.
 
 ## Chạy project
 
 1. Mở project bằng Android Studio và sync Gradle.
 2. Chọn emulator API 24 trở lên rồi Run cấu hình `app`.
-3. Màn Login đã điền sẵn tài khoản demo; bấm **Login** để khám phá.
+3. Setup và chạy backend theo `backend/README.md`, sau đó đăng ký tài khoản rồi đăng nhập.
+   Tài khoản demo điền sẵn không tự được tạo trong database.
 
 Kiểm tra bằng command:
 
@@ -54,6 +55,8 @@ module bằng ví dụ `./gradlew :data:testDebugUnitTest` hoặc build riêng
 ## Tài liệu
 
 - `docs/plan_simplified.md`: plan gốc.
+- `backend/README.md`: hướng dẫn setup Supabase, env, kiểm tra kết nối và chạy backend.
+- `docs/REELS_IMPLEMENTATION.md`: tính năng Reels, migration riêng, media storage, recommendation và checklist test.
 - `docs/ARCHITECTURE_API_DATABASE.md`: REST API, WebSocket, Room, PostgreSQL, MinIO, folder ownership và hướng dẫn chia việc.
 
 Project dùng một `MainActivity` theo kiến trúc Compose. Chỉ integration owner nên 

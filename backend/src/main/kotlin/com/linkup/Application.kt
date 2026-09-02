@@ -5,6 +5,8 @@ import com.linkup.config.EnvConfig
 import com.linkup.repository.UserRepository
 import com.linkup.routes.authRoutes
 import com.linkup.service.JwtService
+import com.linkup.reels.ReelRepository
+import com.linkup.reels.reelRoutes
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
@@ -48,5 +50,6 @@ fun Application.module() {
             call.respondText("LinkUp Backend is running!")
         }
         authRoutes(userRepository)
+        reelRoutes(ReelRepository())
     }
 }

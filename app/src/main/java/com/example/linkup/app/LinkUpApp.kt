@@ -22,6 +22,10 @@ import com.example.linkup.core.ui.LinkUpBottomBar
 import com.example.linkup.data.model.Post
 import com.example.linkup.data.repository.AuthRepositoryImpl
 import com.example.linkup.data.repository.FakeLinkUpRepository
+import com.example.linkup.data.network.AuthSession
+import com.example.linkup.data.reels.ReelRepositoryImpl
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import com.example.linkup.feature.ai.AiChatScreen
 import com.example.linkup.feature.ai.AiConversationsScreen
 import com.example.linkup.feature.auth.LoginScreen
@@ -54,6 +58,9 @@ private val bottomDestinations = setOf(
 fun LinkUpApp() {
     val repository = remember { FakeLinkUpRepository() }
     val authRepository = remember { AuthRepositoryImpl() }
+    val reelsRepository = remember { ReelRepositoryImpl() }
+    val session by AuthSession.state.collectAsState()
+    DisposableEffect(reelsRepository) { onDispose { reelsRepository.close() } }
     val navigator = remember { AppNavigator() }
     var current by remember { mutableStateOf(navigator.current) }
     var posts by remember { mutableStateOf(repository.feed()) }
@@ -106,8 +113,8 @@ fun LinkUpApp() {
                     repository.createPost(content); posts = repository.feed(); reset(AppRoute.FEED)
                 }
                 AppRoute.POST_DETAIL -> PostDetailScreen(selectedPost, ::back) { posts = repository.toggleLike(it) }
-                AppRoute.REELS -> ReelsScreen({ goTo(AppRoute.UPLOAD_REEL) }, { reset(AppRoute.PROFILE) })
-                AppRoute.UPLOAD_REEL -> UploadReelScreen(repository.currentUser(), ::back) { reset(AppRoute.REELS) }
+                AppRoute.REELS -> ReelsScreen(reelsRepository, session?.user, { goTo(AppRoute.UPLOAD_REEL) }, { AuthSession.clear(); reset(AppRoute.LOGIN) })
+                AppRoute.UPLOAD_REEL -> UploadReelScreen(session?.user, reelsRepository, ::back) { reset(AppRoute.REELS) }
                 AppRoute.PROFILE -> ProfileScreen(repository.currentUser(), { goTo(AppRoute.EDIT_PROFILE) }, { goTo(AppRoute.SETTINGS) })
                 AppRoute.EDIT_PROFILE -> EditProfileScreen(repository.currentUser(), ::back, ::back)
                 AppRoute.SEARCH -> SearchScreen(::back) { reset(AppRoute.PROFILE) }
@@ -122,7 +129,7 @@ fun LinkUpApp() {
                 )
                 AppRoute.DATING_MATCH -> DatingMatchScreen({ reset(AppRoute.CHAT_DETAIL) }, { reset(AppRoute.DATING_DISCOVER) })
                 AppRoute.DATING_MATCHES -> DatingMatchesScreen(::back) { reset(AppRoute.CHAT_DETAIL) }
-                AppRoute.SETTINGS -> SettingsScreen(::back, { reset(AppRoute.LOGIN) }, { goTo(AppRoute.DATING_PROFILE) })
+                AppRoute.SETTINGS -> SettingsScreen(::back, { AuthSession.clear(); reset(AppRoute.LOGIN) }, { goTo(AppRoute.DATING_PROFILE) })
             }
         }
     }
