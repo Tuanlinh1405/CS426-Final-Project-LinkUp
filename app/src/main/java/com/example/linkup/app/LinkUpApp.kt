@@ -38,8 +38,8 @@ import com.example.linkup.feature.feed.PostDetailScreen
 import com.example.linkup.feature.more.NotificationsScreen
 import com.example.linkup.feature.more.SearchScreen
 import com.example.linkup.feature.more.SettingsScreen
-import com.example.linkup.feature.profile.EditProfileScreen
-import com.example.linkup.feature.profile.ProfileScreen
+import com.example.linkup.feature.profile.edit.EditProfileScreen
+import com.example.linkup.feature.profile.view.ProfileScreen
 import com.example.linkup.feature.reels.ReelsScreen
 import com.example.linkup.feature.reels.UploadReelScreen
 import kotlinx.coroutines.delay
@@ -106,8 +106,11 @@ fun LinkUpApp() {
                 AppRoute.POST_DETAIL -> PostDetailScreen(selectedPost, ::back) { posts = repository.toggleLike(it) }
                 AppRoute.REELS -> ReelsScreen({ goTo(AppRoute.UPLOAD_REEL) }, { reset(AppRoute.PROFILE) })
                 AppRoute.UPLOAD_REEL -> UploadReelScreen(repository.currentUser(), ::back) { reset(AppRoute.REELS) }
-                AppRoute.PROFILE -> ProfileScreen(repository.currentUser(), { goTo(AppRoute.EDIT_PROFILE) }, { goTo(AppRoute.SETTINGS) })
-                AppRoute.EDIT_PROFILE -> EditProfileScreen(repository.currentUser(), ::back, ::back)
+                AppRoute.PROFILE -> ProfileScreen(
+                    onEdit = { goTo(AppRoute.EDIT_PROFILE) },
+                    onSettings = { goTo(AppRoute.SETTINGS) }
+                )
+                AppRoute.EDIT_PROFILE -> EditProfileScreen(onBack = ::back, onSaved = ::back)
                 AppRoute.SEARCH -> SearchScreen(::back) { reset(AppRoute.PROFILE) }
                 AppRoute.NOTIFICATIONS -> NotificationsScreen(repository.notifications(), ::back) { goTo(AppRoute.POST_DETAIL) }
                 AppRoute.CHAT_LIST -> ChatListScreen(repository.conversations()) { goTo(AppRoute.CHAT_DETAIL) }

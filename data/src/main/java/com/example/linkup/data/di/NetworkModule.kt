@@ -1,6 +1,7 @@
 package com.example.linkup.data.di
 
 import com.example.linkup.data.remote.api.AuthApiService
+import com.example.linkup.data.remote.api.ProfileApiService
 import com.example.linkup.data.remote.interceptor.AuthInterceptor
 import dagger.Module
 import dagger.Provides
@@ -59,5 +60,11 @@ object NetworkModule {
     @Singleton
     fun provideAuthApiService(retrofit: Retrofit): AuthApiService {
         return retrofit.create(AuthApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideProfileApiService(retrofit: Retrofit): ProfileApiService {
+        return retrofit.create(ProfileApiService::class.java)
     }
 }
