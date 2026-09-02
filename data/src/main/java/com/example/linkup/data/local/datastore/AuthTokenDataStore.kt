@@ -5,7 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,16 +22,28 @@ class AuthTokenDataStore @Inject constructor(
         private val KEY_USER_FULL_NAME = stringPreferencesKey("user_full_name")
     }
 
+    // Mirrors the persisted token so OkHttp interceptors can read it without blocking on DataStore.
+    @Volatile
+    private var cachedToken: String? = null
+
+    @Volatile
+    private var tokenLoaded = false
+
     val tokenFlow: Flow<String?> = dataStore.data.map { preferences ->
-        preferences[KEY_ACCESS_TOKEN]
+        preferences[KEY_ACCESS_TOKEN].also { cacheToken(it) }
     }
 
     val userIdFlow: Flow<String?> = dataStore.data.map { preferences ->
         preferences[KEY_USER_ID]
     }
 
+    /** Last known token; null when nothing is stored or the cache has not been primed yet. */
+    fun peekToken(): String? = cachedToken
+
+    fun isTokenLoaded(): Boolean = tokenLoaded
+
     suspend fun getStoredToken(): String? {
-        return tokenFlow.firstOrNull()
+        return dataStore.data.first()[KEY_ACCESS_TOKEN].also { cacheToken(it) }
     }
 
     suspend fun saveAuthData(
@@ -52,6 +64,7 @@ class AuthTokenDataStore @Inject constructor(
                 preferences.remove(KEY_USER_FULL_NAME)
             }
         }
+        cacheToken(token)
     }
 
     suspend fun clearAuthData() {
@@ -62,5 +75,11 @@ class AuthTokenDataStore @Inject constructor(
             preferences.remove(KEY_USER_NAME)
             preferences.remove(KEY_USER_FULL_NAME)
         }
+        cacheToken(null)
+    }
+
+    private fun cacheToken(token: String?) {
+        cachedToken = token
+        tokenLoaded = true
     }
 }

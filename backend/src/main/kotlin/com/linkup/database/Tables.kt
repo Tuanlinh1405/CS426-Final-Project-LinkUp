@@ -27,7 +27,7 @@ object RefreshTokensTable : UUIDTable("refresh_tokens") {
 }
 
 /** 2. Profiles & Following */
-object ProfilesTable : UUIDTable("profiles") {
+object ProfilesTable : UUIDTable("profiles", "user_id") {
     val bio = text("bio").nullable()
     val avatarUrl = text("avatar_url").nullable()
     val coverUrl = text("cover_url").nullable()
@@ -103,6 +103,7 @@ object ReelsTable : UUIDTable("reels") {
 /** 6. Chat (Realtime) */
 object ConversationsTable : UUIDTable("conversations") {
     val type = varchar("type", 20).default("DIRECT")
+    val name = varchar("name", 100).nullable()
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
     val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp)
 }
@@ -122,6 +123,15 @@ object MessagesTable : UUIDTable("messages") {
     val textContent = text("text_content").nullable()
     val mediaId = reference("media_id", MediaTable, onDelete = ReferenceOption.SET_NULL).nullable()
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+}
+
+object MessageReceiptsTable : Table("message_receipts") {
+    val messageId = reference("message_id", MessagesTable, onDelete = ReferenceOption.CASCADE)
+    val userId = reference("user_id", UsersTable, onDelete = ReferenceOption.CASCADE)
+    val status = varchar("status", 20).default("SENT") // SENT, DELIVERED, SEEN
+    val deliveredAt = timestamp("delivered_at").nullable()
+    val readAt = timestamp("read_at").nullable()
+    override val primaryKey = PrimaryKey(messageId, userId)
 }
 
 /** 7. Dating */

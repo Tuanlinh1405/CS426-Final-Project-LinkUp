@@ -16,6 +16,7 @@ dependencies {
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.server.auth.jwt)
+    implementation(libs.ktor.server.websockets)
     implementation(libs.ktor.serialization.kotlinx.json)
     
     implementation(libs.exposed.core)
@@ -23,6 +24,7 @@ dependencies {
     implementation(libs.exposed.jdbc)
     implementation(libs.exposed.kotlin.datetime)
     implementation(libs.postgresql)
+    implementation(libs.hikaricp)
     implementation(libs.dotenv.kotlin)
     implementation(libs.logback)
     implementation("org.mindrot:jbcrypt:0.4")

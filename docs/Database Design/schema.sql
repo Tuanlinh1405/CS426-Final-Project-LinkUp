@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS reels (
 CREATE TABLE IF NOT EXISTS conversations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     type VARCHAR(20) DEFAULT 'DIRECT', -- DIRECT or GROUP
+    name VARCHAR(100), -- Optional group name
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -122,6 +123,15 @@ CREATE TABLE IF NOT EXISTS messages (
     text_content TEXT,
     media_id UUID REFERENCES media(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS message_receipts (
+    message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'SENT', -- SENT, DELIVERED, SEEN
+    delivered_at TIMESTAMP WITH TIME ZONE,
+    read_at TIMESTAMP WITH TIME ZONE,
+    PRIMARY KEY (message_id, user_id)
 );
 
 -- 7. Dating

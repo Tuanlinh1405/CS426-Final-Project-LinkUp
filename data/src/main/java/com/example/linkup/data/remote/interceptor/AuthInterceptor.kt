@@ -19,7 +19,14 @@ class AuthInterceptor @Inject constructor(
             return chain.proceed(originalRequest)
         }
 
-        val token = runBlocking { authTokenDataStore.getStoredToken() }
+        // Non-blocking: token is mirrored in memory once DataStore has been read at least once.
+        val cached = authTokenDataStore.peekToken()
+        val token = if (cached != null || authTokenDataStore.isTokenLoaded()) {
+            cached
+        } else {
+            // Cache not primed yet (e.g. very first request after process start): read once.
+            runBlocking { authTokenDataStore.getStoredToken() }
+        }
 
         val requestBuilder = originalRequest.newBuilder()
         if (!token.isNullOrBlank()) {

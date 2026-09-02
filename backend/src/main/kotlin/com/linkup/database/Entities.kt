@@ -87,6 +87,7 @@ class ReelEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 class ConversationEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<ConversationEntity>(ConversationsTable)
     var type by ConversationsTable.type
+    var name by ConversationsTable.name
     var createdAt by ConversationsTable.createdAt
     var updatedAt by ConversationsTable.updatedAt
 }
