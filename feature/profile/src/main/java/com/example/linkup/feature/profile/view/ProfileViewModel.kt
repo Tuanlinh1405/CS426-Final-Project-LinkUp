@@ -89,6 +89,13 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    /** Clears cached state on logout so the next account never sees the last one's data. */
+    fun reset() {
+        loadedOnce = false
+        target = null
+        _uiState.value = ProfileUiState.Loading
+    }
+
     fun consumeMessage() {
         _uiState.update { state ->
             (state as? ProfileUiState.Ready)?.copy(message = null) ?: state

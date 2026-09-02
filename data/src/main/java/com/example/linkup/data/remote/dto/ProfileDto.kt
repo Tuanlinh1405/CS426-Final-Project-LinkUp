@@ -62,3 +62,22 @@ data class ApiErrorDto(
     val message: String = "Something went wrong",
     val fieldErrors: Map<String, String> = emptyMap()
 )
+
+/** A person in a list: search results, followers, following. */
+@Serializable
+data class UserSummaryDto(
+    val id: String,
+    val username: String,
+    val fullName: String? = null,
+    val avatarUrl: String? = null,
+    val bio: String? = null,
+    val isMe: Boolean = false,
+    val isFollowing: Boolean = false
+)
+
+@Serializable
+data class UserSummaryPageDto(
+    val items: List<UserSummaryDto> = emptyList(),
+    val nextCursor: String? = null,
+    val total: Int = 0
+)

@@ -72,3 +72,23 @@ data class ApiError(
     val message: String,
     val fieldErrors: Map<String, String> = emptyMap()
 )
+
+/** A person as they appear in a list: search results, followers, following. */
+@Serializable
+data class UserSummary(
+    val id: String,
+    val username: String,
+    val fullName: String? = null,
+    val avatarUrl: String? = null,
+    val bio: String? = null,
+    val isMe: Boolean = false,
+    val isFollowing: Boolean = false
+)
+
+/** Cursor-paged list of people. */
+@Serializable
+data class UserSummaryPage(
+    val items: List<UserSummary>,
+    val nextCursor: String? = null,
+    val total: Int = 0
+)

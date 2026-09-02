@@ -9,6 +9,8 @@ import com.linkup.database.UsersTable
 import com.linkup.model.FollowStateResponse
 import com.linkup.model.ProfileResponse
 import com.linkup.model.UpdateProfileRequest
+import com.linkup.model.UserSummary
+import com.linkup.model.UserSummaryPage
 import com.linkup.service.FieldError
 import com.linkup.service.ProfileValidationException
 import com.linkup.service.ProfileValidator
@@ -16,8 +18,17 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import org.jetbrains.exposed.dao.id.EntityID
+import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.JoinType
+import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
+import org.jetbrains.exposed.sql.lowerCase
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insertIgnore
@@ -158,6 +169,8 @@ class ProfileRepository {
                 it[followingId] = targetId
             }
             syncCounters(followerId, targetId)
+            // Same transaction as the follow itself, so the two cannot disagree.
+            NotificationWriter.recordFollow(actorId = followerId, recipientId = targetId)
         }
         FollowStateResponse(
             isFollowing = isFollowing(followerId, targetId),
@@ -170,9 +183,111 @@ class ProfileRepository {
             (FollowsTable.followerId eq followerId) and (FollowsTable.followingId eq targetId)
         }
         syncCounters(followerId, targetId)
+        NotificationWriter.removeFollow(actorId = followerId, recipientId = targetId)
         FollowStateResponse(
             isFollowing = false,
             followerCount = countFollowers(targetId)
+        )
+    }
+
+    /**
+     * Finds people by username or full name.
+     *
+     * Matching is case-insensitive and substring-based, which is right for a few
+     * thousand users. Swap in a trigram or full-text index before it gets larger.
+     */
+    suspend fun searchUsers(
+        query: String,
+        viewerId: UUID,
+        cursor: String?,
+        limit: Int
+    ): UserSummaryPage = dbQuery {
+        val term = query.trim()
+        if (term.isBlank()) return@dbQuery UserSummaryPage(emptyList(), null, 0)
+
+        val pattern = "%${term.lowercase().replace("%", "\\%").replace("_", "\\_")}%"
+        var condition: Op<Boolean> =
+            (UsersTable.username.lowerCase() like pattern) or
+                (UsersTable.fullName.lowerCase() like pattern)
+        cursor?.let { condition = condition and (UsersTable.username greater it) }
+
+        val total = UsersTable.selectAll().where(condition).count().toInt()
+        val rows = UsersTable
+            .join(ProfilesTable, JoinType.LEFT, UsersTable.id, ProfilesTable.id)
+            .selectAll()
+            .where(condition)
+            .orderBy(UsersTable.username to SortOrder.ASC)
+            .limit(limit + 1)
+            .toList()
+
+        buildPage(rows, limit, viewerId, total)
+    }
+
+    /** People who follow [userId]. */
+    suspend fun followers(userId: UUID, viewerId: UUID, cursor: String?, limit: Int): UserSummaryPage =
+        peopleFrom(FollowsTable.followerId, FollowsTable.followingId, userId, viewerId, cursor, limit)
+
+    /** People [userId] follows. */
+    suspend fun following(userId: UUID, viewerId: UUID, cursor: String?, limit: Int): UserSummaryPage =
+        peopleFrom(FollowsTable.followingId, FollowsTable.followerId, userId, viewerId, cursor, limit)
+
+    /**
+     * Shared body for the follower and following lists.
+     *
+     * @param selectColumn the side of `follows` holding the people to return.
+     * @param matchColumn the side that must equal [userId].
+     */
+    private suspend fun peopleFrom(
+        selectColumn: Column<EntityID<UUID>>,
+        matchColumn: Column<EntityID<UUID>>,
+        userId: UUID,
+        viewerId: UUID,
+        cursor: String?,
+        limit: Int
+    ): UserSummaryPage = dbQuery {
+        var condition: Op<Boolean> = matchColumn eq userId
+        cursor?.let { condition = condition and (UsersTable.username greater it) }
+
+        val total = FollowsTable
+            .join(UsersTable, JoinType.INNER, selectColumn, UsersTable.id)
+            .selectAll().where(condition).count().toInt()
+
+        val rows = FollowsTable
+            .join(UsersTable, JoinType.INNER, selectColumn, UsersTable.id)
+            .join(ProfilesTable, JoinType.LEFT, selectColumn, ProfilesTable.id)
+            .selectAll()
+            .where(condition)
+            .orderBy(UsersTable.username to SortOrder.ASC)
+            .limit(limit + 1)
+            .toList()
+
+        buildPage(rows, limit, viewerId, total)
+    }
+
+    /** Trims the lookahead row and resolves each person's follow state for the viewer. */
+    private fun buildPage(
+        rows: List<ResultRow>,
+        limit: Int,
+        viewerId: UUID,
+        total: Int
+    ): UserSummaryPage {
+        val page = rows.take(limit)
+        val items = page.map { row ->
+            val id = row[UsersTable.id].value
+            UserSummary(
+                id = id.toString(),
+                username = row[UsersTable.username],
+                fullName = row[UsersTable.fullName],
+                avatarUrl = row[ProfilesTable.avatarUrl],
+                bio = row[ProfilesTable.bio],
+                isMe = id == viewerId,
+                isFollowing = id != viewerId && isFollowing(viewerId, id)
+            )
+        }
+        return UserSummaryPage(
+            items = items,
+            nextCursor = if (rows.size > limit && page.isNotEmpty()) page.last()[UsersTable.username] else null,
+            total = total
         )
     }
 

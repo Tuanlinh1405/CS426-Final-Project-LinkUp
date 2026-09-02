@@ -11,10 +11,7 @@ import com.linkup.storage.MediaStorage
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
-import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.authenticate
-import io.ktor.server.auth.jwt.JWTPrincipal
-import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respond
@@ -31,14 +28,6 @@ import java.util.UUID
 
 private const val AVATAR_FOLDER = "avatars"
 private const val COVER_FOLDER = "covers"
-
-/** Reads the authenticated user id out of the JWT. */
-private fun ApplicationCall.currentUserId(): UUID? =
-    principal<JWTPrincipal>()
-        ?.payload
-        ?.getClaim("userId")
-        ?.asString()
-        ?.let { runCatching { UUID.fromString(it) }.getOrNull() }
 
 /**
  * Profile endpoints.
@@ -99,7 +88,7 @@ fun Route.profileRoutes(
 
             get("/{id}") {
                 val viewerId = call.currentUserId()
-                val targetId = resolveTarget(call.parameters["id"], profileRepository)
+                val targetId = resolveTarget(call.parameters["id"], call.currentUserId(), profileRepository)
                     ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("Profile not found"))
                 val profile = profileRepository.getProfile(targetId, viewerId)
                     ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("Profile not found"))
@@ -109,7 +98,7 @@ fun Route.profileRoutes(
             post("/{id}/follow") {
                 val viewerId = call.currentUserId()
                     ?: return@post call.respond(HttpStatusCode.Unauthorized, ApiError("Not signed in"))
-                val targetId = resolveTarget(call.parameters["id"], profileRepository)
+                val targetId = resolveTarget(call.parameters["id"], call.currentUserId(), profileRepository)
                     ?: return@post call.respond(HttpStatusCode.NotFound, ApiError("Profile not found"))
                 if (targetId == viewerId) {
                     return@post call.respond(HttpStatusCode.BadRequest, ApiError("You cannot follow yourself"))
@@ -117,10 +106,42 @@ fun Route.profileRoutes(
                 call.respond(HttpStatusCode.OK, profileRepository.follow(viewerId, targetId))
             }
 
+            get("/{id}/followers") {
+                val viewerId = call.currentUserId()
+                    ?: return@get call.respond(HttpStatusCode.Unauthorized, ApiError("Not signed in"))
+                val targetId = resolveTarget(call.parameters["id"], call.currentUserId(), profileRepository)
+                    ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("Profile not found"))
+                call.respond(
+                    HttpStatusCode.OK,
+                    profileRepository.followers(
+                        userId = targetId,
+                        viewerId = viewerId,
+                        cursor = call.request.queryParameters["cursor"],
+                        limit = listLimit(call.request.queryParameters["limit"])
+                    )
+                )
+            }
+
+            get("/{id}/following") {
+                val viewerId = call.currentUserId()
+                    ?: return@get call.respond(HttpStatusCode.Unauthorized, ApiError("Not signed in"))
+                val targetId = resolveTarget(call.parameters["id"], call.currentUserId(), profileRepository)
+                    ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("Profile not found"))
+                call.respond(
+                    HttpStatusCode.OK,
+                    profileRepository.following(
+                        userId = targetId,
+                        viewerId = viewerId,
+                        cursor = call.request.queryParameters["cursor"],
+                        limit = listLimit(call.request.queryParameters["limit"])
+                    )
+                )
+            }
+
             delete("/{id}/follow") {
                 val viewerId = call.currentUserId()
                     ?: return@delete call.respond(HttpStatusCode.Unauthorized, ApiError("Not signed in"))
-                val targetId = resolveTarget(call.parameters["id"], profileRepository)
+                val targetId = resolveTarget(call.parameters["id"], call.currentUserId(), profileRepository)
                     ?: return@delete call.respond(HttpStatusCode.NotFound, ApiError("Profile not found"))
                 call.respond(HttpStatusCode.OK, profileRepository.unfollow(viewerId, targetId))
             }
@@ -128,10 +149,22 @@ fun Route.profileRoutes(
     }
 }
 
-/** Accepts either a UUID or an `@username` / `username` handle. */
-private suspend fun resolveTarget(raw: String?, repository: ProfileRepository): UUID? {
+private fun listLimit(raw: String?): Int = (raw?.toIntOrNull() ?: 20).coerceIn(1, 50)
+
+/**
+ * Resolves a path segment to a user id.
+ *
+ * Accepts a UUID, a username (with or without a leading `@`), or the literal `me`,
+ * which resolves to [viewerId]. Without the `me` case, `/profile/me/followers` fell
+ * through to the `{id}` route and 404'd.
+ */
+private suspend fun resolveTarget(
+    raw: String?,
+    viewerId: UUID?,
+    repository: ProfileRepository
+): UUID? {
     if (raw.isNullOrBlank()) return null
-    if (raw == "me") return null
+    if (raw == "me") return viewerId
     runCatching { UUID.fromString(raw) }.getOrNull()?.let { return it }
     return repository.findIdByUsername(raw)
 }

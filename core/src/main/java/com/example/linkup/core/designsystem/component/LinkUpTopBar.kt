@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -18,10 +19,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.linkup.core.designsystem.theme.LinkDivider
+import com.example.linkup.core.designsystem.theme.LinkPink
 import com.example.linkup.core.designsystem.theme.LinkPurple
 import com.example.linkup.core.designsystem.theme.LinkPurpleSoft
 
@@ -52,7 +55,12 @@ fun ScreenHeader(
 }
 
 @Composable
-fun LinkUpTopBar(onSearch: () -> Unit, onNotifications: () -> Unit, onAi: () -> Unit) {
+fun LinkUpTopBar(
+    onSearch: () -> Unit,
+    onNotifications: () -> Unit,
+    onAi: () -> Unit,
+    unreadNotifications: Int = 0
+) {
     Surface(shadowElevation = 1.dp) {
         Row(
             modifier = Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 16.dp),
@@ -61,18 +69,36 @@ fun LinkUpTopBar(onSearch: () -> Unit, onNotifications: () -> Unit, onAi: () -> 
         ) {
             Text("LinkUp", color = LinkPurple, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, modifier = Modifier.weight(1f))
             TopAction("⌕", onSearch)
-            TopAction("♢", onNotifications)
+            TopAction("♢", onNotifications, badgeCount = unreadNotifications)
             TopAction("AI", onAi)
         }
     }
 }
 
 @Composable
-private fun TopAction(text: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier.size(34.dp).clip(CircleShape).background(LinkPurpleSoft).clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text, color = LinkPurple, fontWeight = FontWeight.Bold)
+private fun TopAction(text: String, onClick: () -> Unit, badgeCount: Int = 0) {
+    Box(contentAlignment = Alignment.TopEnd) {
+        Box(
+            modifier = Modifier.size(34.dp).clip(CircleShape).background(LinkPurpleSoft).clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text, color = LinkPurple, fontWeight = FontWeight.Bold)
+        }
+        if (badgeCount > 0) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(LinkPink)
+                    .padding(horizontal = 4.dp, vertical = 1.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                    color = Color.White,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }

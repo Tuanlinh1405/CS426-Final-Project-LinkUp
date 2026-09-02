@@ -43,61 +43,6 @@ import com.example.linkup.core.designsystem.theme.LinkPurple
 import com.example.linkup.core.designsystem.theme.LinkPurpleSoft
 
 @Composable
-fun SearchScreen(onBack: () -> Unit, onOpenProfile: () -> Unit) {
-    var query by remember { mutableStateOf("") }
-    var tab by remember { mutableStateOf("People") }
-    val people = listOf(
-        User("s1", "John Doe", "@john.doe", "JD"),
-        User("s2", "Alice Brown", "@alice", "AB"),
-        User("s3", "George Clark", "@george", "GC")
-    ).filter { it.name.contains(query, true) || query.isBlank() }
-
-    Column(Modifier.fillMaxSize().imePadding()) {
-        ScreenHeader("Search", onBack)
-        LinkUpField(query, { query = it }, "Search LinkUp", Modifier.padding(16.dp))
-        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("People", "Posts", "Reels").forEach { ChoiceChip(it, selected = tab == it) { tab = it } }
-        }
-        if (tab != "People") EmptyState("No $tab yet", "API results will appear here")
-        else LazyColumn(Modifier.padding(top = 10.dp)) {
-            items(people, key = { it.id }) { user ->
-                Row(Modifier.fillMaxWidth().clickable(onClick = onOpenProfile).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Avatar(user.initials, 46)
-                    Column(Modifier.weight(1f).padding(start = 12.dp)) { Text(user.name, fontWeight = FontWeight.Bold); Text(user.username, color = LinkMuted) }
-                    Box(Modifier.clip(CircleShape).background(LinkPurpleSoft).padding(horizontal = 14.dp, vertical = 7.dp)) { Text("Follow", color = LinkPurple, fontWeight = FontWeight.Bold, fontSize = 12.sp) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun NotificationsScreen(notifications: List<NotificationItem>, onBack: () -> Unit, onOpen: () -> Unit) {
-    var unreadOnly by remember { mutableStateOf(false) }
-    val visible = if (unreadOnly) notifications.filter { it.unread } else notifications
-    Column(Modifier.fillMaxSize().background(Color.White)) {
-        ScreenHeader("Notifications", onBack, action = "Mark all read")
-        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ChoiceChip("All", !unreadOnly) { unreadOnly = false }
-            ChoiceChip("Unread", unreadOnly) { unreadOnly = true }
-        }
-        LazyColumn {
-            items(visible, key = { it.id }) { item ->
-                Row(Modifier.fillMaxWidth().background(if (item.unread) LinkPurpleSoft.copy(alpha = .45f) else Color.White).clickable(onClick = onOpen).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Avatar(item.actor.initials, 44)
-                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text(item.actor.name, fontWeight = FontWeight.Bold)
-                        Text(item.text, fontSize = 13.sp)
-                    }
-                    Text(item.time, color = LinkMuted, fontSize = 11.sp)
-                }
-                HorizontalDivider(color = LinkDivider)
-            }
-        }
-    }
-}
-
-@Composable
 fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, onDatingProfile: () -> Unit) {
     var darkMode by remember { mutableStateOf(false) }
     var notifications by remember { mutableStateOf(true) }

@@ -91,3 +91,33 @@ class ProfileException(
     override val message: String,
     val fieldErrors: Map<String, String> = emptyMap()
 ) : Exception(message)
+
+/** A person as shown in a list row. */
+data class UserSummary(
+    val id: String,
+    val username: String,
+    val fullName: String?,
+    val avatarUrl: String?,
+    val bio: String?,
+    val isMe: Boolean,
+    val isFollowing: Boolean
+) {
+    val displayName: String get() = fullName?.takeIf { it.isNotBlank() } ?: username
+
+    val handle: String get() = "@$username"
+
+    val initials: String
+        get() = displayName
+            .split(' ', '.', '_')
+            .filter { it.isNotBlank() }
+            .take(2)
+            .map { it.first().uppercaseChar() }
+            .joinToString("")
+            .ifEmpty { username.take(1).uppercase() }
+}
+
+data class UserSummaryPage(
+    val items: List<UserSummary>,
+    val nextCursor: String?,
+    val total: Int
+)

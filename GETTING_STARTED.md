@@ -23,9 +23,11 @@ Với máy thật, đổi `provideBaseUrl()` trong `data/di/NetworkModule.kt` v�
 Kiểm tra bằng command:
 
 ```bash
-./gradlew testDebugUnitTest assembleDebug   # Android
-./gradlew :backend:test                     # backend unit test, không cần database
-bash scripts/profile-api-smoke.sh           # end-to-end, cần backend đang chạy
+./gradlew testDebugUnitTest assembleDebug     # Android
+./gradlew :backend:test                       # backend unit test, không cần database
+bash scripts/profile-api-smoke.sh             # end-to-end, cần backend đang chạy
+bash scripts/notifications-api-smoke.sh       # end-to-end, cần backend đang chạy
+bash scripts/discovery-api-smoke.sh           # end-to-end, cần backend đang chạy
 ```
 
 APK debug: `app/build/outputs/apk/debug/app-debug.apk`.
@@ -37,7 +39,8 @@ APK debug: `app/build/outputs/apk/debug/app-debug.apk`.
 - Bottom navigation → Reels, Dating, Chats, Profile.
 - Reels → Upload Reel.
 - Profile → Edit Profile → Settings/Logout (đã nối API thật).
-- Search, Notifications, AI chat/history.
+- Search người dùng (đã nối API thật), AI chat/history.
+- Notifications (đã nối API thật).
 - Chat list → Chat detail → gửi tin nhắn mock.
 - Dating profile → Discover → Match → Chat/Matches.
 
@@ -77,6 +80,37 @@ Vào từ tab **Profile** ở bottom navigation, hoặc từ avatar trên Feed.
 - Xem profile người khác: email và số điện thoại được ẩn, có nút Follow/Following.
 
 Backend tương ứng: xem bảng endpoint trong `backend/README.md`.
+
+## Notifications (đã hoàn thiện)
+
+Vào từ icon chuông trên thanh top bar của Feed. Chuông có badge đếm số chưa đọc.
+
+- Danh sách nhóm theo **New / This week / Earlier**, lọc **All / Unread**.
+- Mỗi dòng có avatar kèm badge loại thông báo, câu mô tả in đậm tên người thực hiện,
+  thời gian tương đối ("5m", "3h", "2d"), chấm tím nếu chưa đọc.
+- Menu `⋯` trên từng dòng: đánh dấu đã đọc/chưa đọc, xoá. Menu ở header: đánh dấu tất
+  cả đã đọc, xoá tất cả (có hộp thoại xác nhận).
+- Cuộn tới cuối tự tải trang tiếp theo (cursor pagination).
+- Mọi thao tác cập nhật giao diện ngay lập tức và tự hoàn tác nếu server báo lỗi.
+- Bấm vào thông báo FOLLOW sẽ mở trang cá nhân của người đó.
+
+Thông báo được sinh ra thật, không phải mock: **follow một người sẽ tạo thông báo cho
+họ**, bỏ follow thì rút lại, và tài khoản mới đăng ký nhận một thông báo chào mừng.
+
+## Tìm người & danh sách theo dõi (mới)
+
+- **Search** (icon ⌕ trên Feed): gõ tên hoặc username, kết quả thật từ database, có
+  nút Follow ngay trong danh sách, bấm vào một người để mở trang cá nhân của họ.
+- **Followers / Following**: bấm vào số Followers hoặc Following trên trang cá nhân
+  (của mình hoặc của người khác) để mở danh sách, có thể follow/unfollow ngay tại đó.
+- Cả hai đều cuộn tới đâu tải tới đó.
+
+## Đăng nhập & đăng xuất
+
+- App **tự đăng nhập lại** nếu token còn hạn: mở app là vào thẳng Feed. Token hết hạn
+  sẽ tự bị xoá và quay về màn Login.
+- **Đăng xuất** xoá token thật và xoá toàn bộ dữ liệu đang cache (profile, thông báo,
+  search), nên tài khoản sau không nhìn thấy dữ liệu của tài khoản trước.
 
 ## Tài liệu
 

@@ -32,8 +32,10 @@ Start the backend **before** launching the app — the app cannot start it.
 ## Tests
 
 ```bash
-./gradlew :backend:test                 # JVM unit tests, no database needed
-bash scripts/profile-api-smoke.sh       # end-to-end, needs the server running
+./gradlew :backend:test                       # JVM unit tests, no database needed
+bash scripts/profile-api-smoke.sh             # end-to-end, needs the server running
+bash scripts/notifications-api-smoke.sh       # end-to-end, needs the server running
+bash scripts/discovery-api-smoke.sh           # end-to-end, needs the server running
 ```
 
 The smoke script registers throwaway users, so point it at a dev database.
@@ -60,8 +62,15 @@ All profile routes require `Authorization: Bearer <jwt>`.
 | `POST` | `/profile/me/cover` | `multipart/form-data`, one image part |
 | `DELETE` | `/profile/me/avatar` | Clears the avatar and deletes the file |
 | `DELETE` | `/profile/me/cover` | Clears the cover and deletes the file |
+| `GET` | `/profile/{id}/followers` | Cursor-paged people list |
+| `GET` | `/profile/{id}/following` | Cursor-paged people list |
 | `POST` | `/profile/{id}/follow` | → `{isFollowing, followerCount}` |
 | `DELETE` | `/profile/{id}/follow` | → `{isFollowing, followerCount}` |
+| `GET` | `/users/search` | `?q=&cursor=&limit=` — matches username or full name |
+
+Anywhere `{id}` appears it accepts a user UUID, a username, or the literal `me`.
+People lists page by username cursor and carry `isMe` / `isFollowing` per row, so a
+follow button can render without a second call.
 
 `PATCH /profile/me` takes any subset of `fullName, username, email, phone, bio,
 location, website, birthdate, gender`. **Omitting a field leaves it unchanged; sending
@@ -80,6 +89,42 @@ Errors use one envelope:
 
 `422` means a field failed validation, `409` means a username or email is taken; both
 name the offending field in `fieldErrors` so the client can mark that input.
+
+### Notifications
+
+All notification routes require `Authorization: Bearer <jwt>` and are scoped to the
+caller — someone else's notification is indistinguishable from one that does not exist.
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| `GET` | `/notifications` | `?cursor=&limit=&filter=all\|unread` → `{items, nextCursor, unreadCount}` |
+| `GET` | `/notifications/unread-count` | Just the badge figure |
+| `PUT` | `/notifications/{id}/read` | `?read=false` marks it unread again |
+| `PUT` | `/notifications/read-all` | → `{affected, unreadCount}` |
+| `DELETE` | `/notifications/{id}` | Removes one |
+| `DELETE` | `/notifications` | Clears the inbox |
+
+Paging is by cursor, not offset. New rows arrive at the top of this list constantly,
+and an offset would silently skip or repeat items as they shift. The cursor pairs the
+timestamp with the row id (`<instant>_<uuid>`) so the sort is total even when two
+notifications share a timestamp. A malformed cursor restarts from the top rather than
+failing the request.
+
+**Who writes notifications.** A notifications table nobody writes to is dead weight,
+so the producers are wired in `NotificationWriter` and run inside the same transaction
+as the action that caused them:
+
+| Trigger | Type | Behaviour |
+| --- | --- | --- |
+| `POST /profile/{id}/follow` | `FOLLOW` | Any earlier FOLLOW from the same actor is replaced, so toggling follow cannot pile up duplicates |
+| `DELETE /profile/{id}/follow` | — | Withdraws the FOLLOW notification |
+| `POST /auth/register` | `SYSTEM` | A welcome notice, so a new account's inbox is never a dead end |
+
+`NotificationType` also defines `LIKE`, `COMMENT`, `MENTION`, `MESSAGE` and
+`DATING_MATCH`. Those rows render correctly today; they simply have no producer until
+the feed, chat and dating features land. Call `NotificationWriter` from those features
+when they do — the client already handles every type, and an unrecognised one degrades
+to a readable row rather than disappearing.
 
 ### Media
 

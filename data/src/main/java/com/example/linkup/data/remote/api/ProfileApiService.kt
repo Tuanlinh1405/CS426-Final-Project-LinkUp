@@ -4,6 +4,7 @@ import com.example.linkup.data.remote.dto.FollowStateDto
 import com.example.linkup.data.remote.dto.MediaUploadResponseDto
 import com.example.linkup.data.remote.dto.ProfileDto
 import com.example.linkup.data.remote.dto.UpdateProfileRequestDto
+import com.example.linkup.data.remote.dto.UserSummaryPageDto
 import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -14,6 +15,7 @@ import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ProfileApiService {
 
@@ -46,4 +48,23 @@ interface ProfileApiService {
 
     @DELETE("profile/{id}/follow")
     suspend fun unfollow(@Path("id") id: String): Response<FollowStateDto>
+
+    @GET("users/search")
+    suspend fun searchUsers(
+        @Query("q") query: String,
+        @Query("cursor") cursor: String? = null,
+        @Query("limit") limit: Int? = null
+    ): Response<UserSummaryPageDto>
+
+    @GET("profile/{id}/followers")
+    suspend fun followers(
+        @Path("id") id: String,
+        @Query("cursor") cursor: String? = null
+    ): Response<UserSummaryPageDto>
+
+    @GET("profile/{id}/following")
+    suspend fun following(
+        @Path("id") id: String,
+        @Query("cursor") cursor: String? = null
+    ): Response<UserSummaryPageDto>
 }

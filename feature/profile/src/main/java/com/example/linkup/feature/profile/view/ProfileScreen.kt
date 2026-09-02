@@ -78,6 +78,8 @@ fun ProfileScreen(
     modifier: Modifier = Modifier,
     userId: String? = null,
     onBack: (() -> Unit)? = null,
+    onOpenFollowers: (String) -> Unit = {},
+    onOpenFollowing: (String) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -100,7 +102,9 @@ fun ProfileScreen(
                 onBack = onBack,
                 onRefresh = viewModel::refresh,
                 onToggleFollow = viewModel::toggleFollow,
-                onDismissMessage = viewModel::consumeMessage
+                onDismissMessage = viewModel::consumeMessage,
+                onOpenFollowers = onOpenFollowers,
+                onOpenFollowing = onOpenFollowing
             )
         }
     }
@@ -114,7 +118,9 @@ private fun ProfileContent(
     onBack: (() -> Unit)?,
     onRefresh: () -> Unit,
     onToggleFollow: () -> Unit,
-    onDismissMessage: () -> Unit
+    onDismissMessage: () -> Unit,
+    onOpenFollowers: (String) -> Unit,
+    onOpenFollowing: (String) -> Unit
 ) {
     val profile = state.profile
     var tab by remember { mutableStateOf(TABS.first()) }
@@ -151,8 +157,18 @@ private fun ProfileContent(
             Spacer(Modifier.height(4.dp))
             Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                 StatColumn(profile.postCount, "Posts", Modifier.weight(1f))
-                StatColumn(profile.followerCount, "Followers", Modifier.weight(1f))
-                StatColumn(profile.followingCount, "Following", Modifier.weight(1f))
+                StatColumn(
+                    value = profile.followerCount,
+                    label = "Followers",
+                    modifier = Modifier.weight(1f),
+                    onClick = { onOpenFollowers(profile.id) }
+                )
+                StatColumn(
+                    value = profile.followingCount,
+                    label = "Following",
+                    modifier = Modifier.weight(1f),
+                    onClick = { onOpenFollowing(profile.id) }
+                )
             }
 
             Spacer(Modifier.height(4.dp))

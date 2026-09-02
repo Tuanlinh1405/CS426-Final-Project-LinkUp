@@ -6,6 +6,7 @@ import com.example.linkup.data.model.PickedImage
 import com.example.linkup.data.model.Profile
 import com.example.linkup.data.model.ProfileException
 import com.example.linkup.data.model.ProfileUpdate
+import com.example.linkup.data.model.UserSummaryPage
 import com.example.linkup.data.remote.api.ProfileApiService
 import com.example.linkup.data.remote.dto.ApiErrorDto
 import kotlinx.serialization.json.Json
@@ -49,6 +50,19 @@ class ProfileRepositoryImpl @Inject constructor(
     override suspend fun setFollowing(userId: String, follow: Boolean): Result<Boolean> =
         call { if (follow) api.follow(userId) else api.unfollow(userId) }
             .map { it.isFollowing }
+
+    override suspend fun searchUsers(query: String, cursor: String?): Result<UserSummaryPage> {
+        val term = query.trim()
+        // Save the round trip: the server returns nothing for a blank query anyway.
+        if (term.isEmpty()) return Result.success(UserSummaryPage(emptyList(), null, 0))
+        return call { api.searchUsers(term, cursor) }.map { it.toDomain() }
+    }
+
+    override suspend fun followers(userId: String, cursor: String?): Result<UserSummaryPage> =
+        call { api.followers(userId.removePrefix("@"), cursor) }.map { it.toDomain() }
+
+    override suspend fun following(userId: String, cursor: String?): Result<UserSummaryPage> =
+        call { api.following(userId.removePrefix("@"), cursor) }.map { it.toDomain() }
 
     // ---- helpers ---------------------------------------------------------
 

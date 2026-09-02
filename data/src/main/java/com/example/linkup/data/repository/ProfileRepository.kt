@@ -3,6 +3,7 @@ package com.example.linkup.data.repository
 import com.example.linkup.data.model.PickedImage
 import com.example.linkup.data.model.Profile
 import com.example.linkup.data.model.ProfileUpdate
+import com.example.linkup.data.model.UserSummaryPage
 
 interface ProfileRepository {
 
@@ -25,4 +26,11 @@ interface ProfileRepository {
 
     /** @return the resulting follow state. */
     suspend fun setFollowing(userId: String, follow: Boolean): Result<Boolean>
+
+    /** Finds people by username or full name. A blank query returns nothing. */
+    suspend fun searchUsers(query: String, cursor: String?): Result<UserSummaryPage>
+
+    suspend fun followers(userId: String, cursor: String?): Result<UserSummaryPage>
+
+    suspend fun following(userId: String, cursor: String?): Result<UserSummaryPage>
 }

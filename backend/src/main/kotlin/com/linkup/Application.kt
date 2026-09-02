@@ -2,10 +2,13 @@ package com.linkup
 
 import com.linkup.database.DatabaseFactory
 import com.linkup.config.EnvConfig
+import com.linkup.repository.NotificationRepository
 import com.linkup.repository.ProfileRepository
 import com.linkup.repository.UserRepository
 import com.linkup.routes.authRoutes
+import com.linkup.routes.notificationRoutes
 import com.linkup.routes.profileRoutes
+import com.linkup.routes.userRoutes
 import com.linkup.service.JwtService
 import com.linkup.storage.LocalMediaStorage
 import com.linkup.storage.MediaStorage
@@ -49,6 +52,7 @@ fun Application.module() {
 
     val userRepository = UserRepository()
     val profileRepository = ProfileRepository()
+    val notificationRepository = NotificationRepository()
     val mediaStorage: MediaStorage = LocalMediaStorage()
 
     routing {
@@ -62,5 +66,7 @@ fun Application.module() {
 
         authRoutes(userRepository)
         profileRoutes(profileRepository, mediaStorage)
+        notificationRoutes(notificationRepository)
+        userRoutes(profileRepository)
     }
 }

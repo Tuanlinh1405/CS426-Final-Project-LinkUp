@@ -11,12 +11,16 @@ import java.util.*
 class UserRepository {
     suspend fun registerUser(request: UserRegistrationRequest): UserEntity? = dbQuery {
         val passwordHash = BCrypt.hashpw(request.password, BCrypt.gensalt())
-        UserEntity.new {
+        val user = UserEntity.new {
             email = request.email
             username = request.username
             this.passwordHash = passwordHash
             fullName = request.fullName
         }
+        // Force the INSERT now: the welcome notification has a foreign key to this row.
+        user.flush()
+        NotificationWriter.recordWelcome(user.id.value)
+        user
     }
 
     suspend fun getUserById(id: UUID): UserEntity? = dbQuery {

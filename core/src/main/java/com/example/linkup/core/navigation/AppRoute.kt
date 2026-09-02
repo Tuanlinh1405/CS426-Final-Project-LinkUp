@@ -12,6 +12,8 @@ enum class AppRoute {
     UPLOAD_REEL,
     PROFILE,
     EDIT_PROFILE,
+    FOLLOWERS,
+    FOLLOWING,
     SEARCH,
     NOTIFICATIONS,
     CHAT_LIST,
@@ -25,29 +27,47 @@ enum class AppRoute {
     SETTINGS
 }
 
+/**
+ * Route history with one argument per entry.
+ *
+ * The argument is what a destination is *about* — whose profile, whose follower list.
+ * It has to live in the history rather than in a single variable next to it: with one
+ * shared variable, walking Followers(A) → Profile(B) → Followers(B) and then pressing
+ * back twice restores the Followers route but leaves it pointing at B.
+ */
 class AppNavigator(start: AppRoute = AppRoute.SPLASH) {
-    private val history = ArrayDeque<AppRoute>()
+    private val history = ArrayDeque<Pair<AppRoute, String?>>()
+
     var current: AppRoute = start
         private set
 
-    fun goTo(destination: AppRoute) {
-        if (destination == current) return
-        history.addLast(current)
+    /** Argument for [current], or null when the destination takes none. */
+    var currentArg: String? = null
+        private set
+
+    fun goTo(destination: AppRoute, arg: String? = null) {
+        if (destination == current && arg == currentArg) return
+        history.addLast(current to currentArg)
         current = destination
+        currentArg = arg
     }
 
-    fun replace(destination: AppRoute) {
+    fun replace(destination: AppRoute, arg: String? = null) {
         current = destination
+        currentArg = arg
     }
 
     fun back(): Boolean {
         if (history.isEmpty()) return false
-        current = history.removeLast()
+        val (route, arg) = history.removeLast()
+        current = route
+        currentArg = arg
         return true
     }
 
-    fun reset(destination: AppRoute) {
+    fun reset(destination: AppRoute, arg: String? = null) {
         history.clear()
         current = destination
+        currentArg = arg
     }
 }
