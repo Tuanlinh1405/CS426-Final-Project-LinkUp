@@ -40,6 +40,17 @@ CREATE TABLE IF NOT EXISTS follows (
     CONSTRAINT cannot_follow_self CHECK (follower_id <> following_id)
 );
 
+CREATE TABLE IF NOT EXISTS friendships (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    requester_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    addressee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING | ACCEPTED
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    responded_at TIMESTAMP WITH TIME ZONE,
+    UNIQUE (requester_id, addressee_id),
+    CONSTRAINT cannot_friend_self CHECK (requester_id <> addressee_id)
+);
+
 -- 3. Media Storage Metadata
 CREATE TABLE IF NOT EXISTS media (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
