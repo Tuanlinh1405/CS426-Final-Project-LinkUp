@@ -177,10 +177,11 @@ class ReelRepository(private val connect: () -> Connection = {
     }.firstOrNull()
     private fun ResultSet.author() = ReelAuthor(getString("author_id"), getString("username"), getString("full_name")?.takeIf(String::isNotBlank) ?: getString("username"), getString("avatar_url"))
     private fun ResultSet.reel() = ReelDto(getString("id"), author(), getString("caption") ?: "", getString("video_url"), getString("thumbnail_url"),
-        getLong("duration_ms"), getInt("width"), getInt("height"), getTimestamp("created_at").toInstant().toString(), getLong("likes"), getLong("comments"), getBoolean("liked"))
+        getLong("duration_ms"), getInt("width"), getInt("height"), getTimestamp("created_at").toInstant().toString(), getLong("likes"), getLong("comments"), getBoolean("liked"),
+        getString("video_key"), getString("thumbnail_key"), getString("storage_backend"))
 
     companion object {
-        private const val SELECT_REEL = """SELECT r.*,u.username,u.full_name,p.avatar_url,COALESCE(a.duration_ms,r.duration*1000,1000) duration_ms,
+        private const val SELECT_REEL = """SELECT r.*,u.username,u.full_name,p.avatar_url,a.video_key,a.thumbnail_key,a.storage_backend,COALESCE(a.duration_ms,r.duration*1000,1000) duration_ms,
             (SELECT COUNT(*) FROM reel_reactions l WHERE l.reel_id=r.id) likes,
             (SELECT COUNT(*) FROM reel_comments c WHERE c.reel_id=r.id) comments,
             EXISTS(SELECT 1 FROM reel_reactions l WHERE l.reel_id=r.id AND l.user_id=?) liked

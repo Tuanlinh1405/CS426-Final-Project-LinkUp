@@ -169,14 +169,16 @@ Không log password/token, không hard-code JWT secret và không để AI key t
 
 | Method | Endpoint | Ghi chú |
 |---|---|---|
-| GET | `/feed?cursor=&limit=20` | cursor pagination |
-| POST | `/posts` | text, privacy, `mediaIds[]` |
+| GET | `/posts?cursor=&limit=` | cursor pagination, mặc định 15 |
+| POST | `/posts` | multipart `id`, `content`, tối đa 4 ảnh |
 | GET | `/posts/{postId}` | chi tiết post |
 | DELETE | `/posts/{postId}` | chỉ owner/admin |
-| PUT | `/posts/{postId}/reaction` | body `{type: LIKE}`; idempotent |
+| PUT | `/posts/{postId}/reaction` | like idempotent |
 | DELETE | `/posts/{postId}/reaction` | idempotent |
 | GET | `/posts/{postId}/comments?cursor=` | comment page |
-| POST | `/posts/{postId}/comments` | text, optional parentId |
+| POST | `/posts/{postId}/comments` | `{id, content}` idempotent theo id |
+| DELETE | `/posts/{postId}/comments/{commentId}` | chỉ chủ comment |
+| GET | `/media/{mediaId}` | redirect URL Storage ký ngắn hạn |
 
 Luồng mở Feed theo offline-first:
 

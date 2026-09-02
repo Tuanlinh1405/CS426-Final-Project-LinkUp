@@ -1,6 +1,7 @@
 package com.example.linkup.feature.reels
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -23,5 +24,12 @@ class ReelPlaybackWindowTest {
     fun `reels outside adjacent window are not prepared`() {
         assertFalse(shouldPrepareReel(index = 1, currentIndex = 3, currentReady = true))
         assertFalse(shouldPrepareReel(index = 5, currentIndex = 3, currentReady = true))
+    }
+
+    @Test
+    fun `warm window favors upcoming reels and keeps two previous reels`() {
+        assertEquals(listOf(6, 7, 8, 4, 3), warmIndices(currentIndex = 5, itemCount = 10))
+        assertEquals(listOf(1, 2, 3), warmIndices(currentIndex = 0, itemCount = 10))
+        assertEquals(listOf(8, 7), warmIndices(currentIndex = 9, itemCount = 10))
     }
 }

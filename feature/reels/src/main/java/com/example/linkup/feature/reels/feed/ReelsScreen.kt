@@ -27,6 +27,7 @@ import com.example.linkup.data.network.ApiClient
 import com.example.linkup.data.reels.*
 import com.example.linkup.feature.reels.comments.ReelCommentsSheet
 import com.example.linkup.feature.reels.player.ReelPlayer
+import com.example.linkup.feature.reels.player.ReelVideoCache
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -80,6 +81,11 @@ fun ReelsScreen(repository: ReelRepository, me: UserResponse?, onUpload: () -> U
         catch (e: Exception) { error = e.message ?: "Cannot load more reels."; next = null }
         finally { loadingMore = false }
     }
+    val settledReelReady = items.getOrNull(pager.settledPage)?.id?.let { readyReels[it] == true } == true
+    LaunchedEffect(pager.settledPage, items.size, loading, settledReelReady) {
+        // Do not let background warm-up compete with the Reel currently waiting to start.
+        if (!loading && settledReelReady) warmAround(context, items, pager.settledPage)
+    }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (items.isNotEmpty()) VerticalPager(
             state = pager,
@@ -98,6 +104,7 @@ fun ReelsScreen(repository: ReelRepository, me: UserResponse?, onUpload: () -> U
                     ApiClient.mediaUrl(reel.videoUrl), reel.durationMs,
                     active = index == currentIndex && commentReel == null && deleteReel == null,
                     muted = muted, modifier = Modifier.fillMaxSize(),
+                    cacheKey = ReelVideoCache.cacheKey(reel.id),
                     onWatch = { repository.watch(reel.id, it) },
                     exitReason = { if (index != currentIndex) "SWIPE" else "BACKGROUND" },
                     onReady = { readyReels[reel.id] = true },
@@ -121,7 +128,7 @@ fun ReelsScreen(repository: ReelRepository, me: UserResponse?, onUpload: () -> U
                     ReelAction("💬", reel.commentCount.toString()) { commentReel = reel }
                     ReelAction("↗", "Share") {
                         context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"; putExtra(Intent.EXTRA_TEXT, "${reel.caption}\n${ApiClient.mediaUrl(reel.videoUrl)}")
+                            type = "text/plain"; putExtra(Intent.EXTRA_TEXT, "${reel.caption}\n${ApiClient.mediaUrl("reels/${reel.id}/video")}")
                         }, "Share reel"))
                     }
                     if (reel.author.id == me?.id) ReelAction("×", "Delete", enabled = busy == null) { deleteReel = reel }

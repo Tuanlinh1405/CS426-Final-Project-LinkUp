@@ -40,7 +40,7 @@ fun Route.reelRoutes(repository: ReelRepository, storage: ReelStorageRegistry = 
                 call.reelGuard {
                     val user = call.reelUser(repository)
                     val author = call.request.queryParameters["authorId"]?.let(ReelRepository::uuid)
-                    call.respond(feed.page(user, author, call.request.queryParameters["cursor"], call.pageLimit()))
+                    call.respond(feed.page(user, author, call.request.queryParameters["cursor"], call.pageLimit()).directMedia(storage))
                 }
             }
             post {
@@ -83,7 +83,7 @@ fun Route.reelRoutes(repository: ReelRepository, storage: ReelStorageRegistry = 
                         val existing = repository.get(id, user)
                         if (existing != null) {
                             if (existing.author.id != user.toString()) throw ReelFailure(409, "Upload identifier already used.")
-                            call.respond(existing)
+                            call.respond(existing.directMedia(storage))
                         } else {
                             val metadata = withContext(Dispatchers.IO) { ReelMedia.inspect(file).also { thumbnail?.let(ReelMedia::validateThumbnail) } }
                             val target = storage.current()
@@ -97,7 +97,7 @@ fun Route.reelRoutes(repository: ReelRepository, storage: ReelStorageRegistry = 
                                 }
                                 // If the client cancels during commit, retain files for the committed row.
                                 withContext(NonCancellable) { committed = repository.create(id, user, caption, metadata, asset) }
-                                call.respond(HttpStatusCode.Created, repository.get(id, user) ?: throw ReelFailure(500, "Cannot load uploaded reel."))
+                                call.respond(HttpStatusCode.Created, (repository.get(id, user) ?: throw ReelFailure(500, "Cannot load uploaded reel.")).directMedia(storage))
                             } finally {
                                 if (!committed) withContext(NonCancellable + Dispatchers.IO) {
                                     runCatching { target.delete(asset.videoKey) }
@@ -113,7 +113,7 @@ fun Route.reelRoutes(repository: ReelRepository, storage: ReelStorageRegistry = 
                 }
             }
             route("/{id}") {
-                get { call.reelGuard { val user = call.reelUser(repository); call.respond(repository.get(ReelRepository.uuid(call.parameters["id"]), user) ?: throw ReelFailure(404, "Reel not found.")) } }
+                get { call.reelGuard { val user = call.reelUser(repository); call.respond((repository.get(ReelRepository.uuid(call.parameters["id"]), user) ?: throw ReelFailure(404, "Reel not found.")).directMedia(storage)) } }
                 delete {
                     call.reelGuard {
                         val asset = repository.delete(ReelRepository.uuid(call.parameters["id"]), call.reelUser(repository))
@@ -125,8 +125,8 @@ fun Route.reelRoutes(repository: ReelRepository, storage: ReelStorageRegistry = 
                         call.respond(HttpStatusCode.NoContent)
                     }
                 }
-                put("/reaction") { call.reelGuard { val user = call.reelUser(repository); val id = ReelRepository.uuid(call.parameters["id"]); repository.like(id, user, true); call.respond(repository.get(id, user)!!) } }
-                delete("/reaction") { call.reelGuard { val user = call.reelUser(repository); val id = ReelRepository.uuid(call.parameters["id"]); repository.like(id, user, false); call.respond(repository.get(id, user)!!) } }
+                put("/reaction") { call.reelGuard { val user = call.reelUser(repository); val id = ReelRepository.uuid(call.parameters["id"]); repository.like(id, user, true); call.respond(repository.get(id, user)!!.directMedia(storage)) } }
+                delete("/reaction") { call.reelGuard { val user = call.reelUser(repository); val id = ReelRepository.uuid(call.parameters["id"]); repository.like(id, user, false); call.respond(repository.get(id, user)!!.directMedia(storage)) } }
                 put("/hidden") { call.reelGuard { repository.hide(ReelRepository.uuid(call.parameters["id"]), call.reelUser(repository), true); call.respond(HttpStatusCode.NoContent) } }
                 delete("/hidden") { call.reelGuard { repository.hide(ReelRepository.uuid(call.parameters["id"]), call.reelUser(repository), false); call.respond(HttpStatusCode.NoContent) } }
                 get("/comments") { call.reelGuard { call.reelUser(repository); call.respond(repository.comments(ReelRepository.uuid(call.parameters["id"]), call.request.queryParameters["cursor"], call.pageLimit())) } }
@@ -136,6 +136,17 @@ fun Route.reelRoutes(repository: ReelRepository, storage: ReelStorageRegistry = 
             }
         }
     }
+}
+
+private fun ReelPage.directMedia(stores: ReelStorageRegistry) = copy(items = items.map { it.directMedia(stores) })
+
+private fun ReelDto.directMedia(stores: ReelStorageRegistry): ReelDto {
+    val backend = storageBackend ?: return this
+    val store = stores.get(backend)
+    return copy(
+        videoUrl = videoKey?.let(store::playbackUrl) ?: videoUrl,
+        thumbnailUrl = thumbnailKey?.let(store::playbackUrl) ?: thumbnailUrl,
+    )
 }
 
 private suspend fun ApplicationCall.reelUser(repository: ReelRepository): UUID {

@@ -1,12 +1,16 @@
 package com.linkup.reels
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 @Serializable data class ReelAuthor(val id: String, val username: String, val name: String, val avatarUrl: String? = null)
 @Serializable data class ReelDto(
     val id: String, val author: ReelAuthor, val caption: String, val videoUrl: String,
     val thumbnailUrl: String? = null, val durationMs: Long, val width: Int, val height: Int,
     val createdAt: String, val likeCount: Long, val commentCount: Long, val liked: Boolean,
+    @Transient val videoKey: String? = null,
+    @Transient val thumbnailKey: String? = null,
+    @Transient val storageBackend: String? = null,
 )
 @Serializable data class ReelPage(val items: List<ReelDto>, val nextCursor: String? = null)
 @Serializable data class ReelCommentDto(val id: String, val author: ReelAuthor, val content: String, val createdAt: String)

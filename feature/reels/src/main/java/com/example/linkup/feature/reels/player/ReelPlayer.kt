@@ -22,7 +22,6 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -36,6 +35,7 @@ import java.util.UUID
 @Composable
 fun ReelPlayer(
     uri: String, durationMs: Long, active: Boolean, muted: Boolean, modifier: Modifier = Modifier,
+    cacheKey: String? = null,
     onWatch: ((WatchEvent) -> Unit)? = null, exitReason: () -> String = { "BACKGROUND" },
     onReady: () -> Unit = {},
 ) {
@@ -54,8 +54,8 @@ fun ReelPlayer(
     val tracker = remember(uri) { PlaybackTracker(durationMs) }
     val sessionId = remember(uri) { UUID.randomUUID().toString() }
     var started by remember(uri) { mutableStateOf(false) }
-    val player = remember(uri) {
-        val dataSource = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
+    val player = remember(uri, cacheKey) {
+        val dataSource = ReelVideoCache.dataSourceFactory(context)
         val mediaSource = DefaultMediaSourceFactory(context).setDataSourceFactory(dataSource)
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
@@ -73,7 +73,8 @@ fun ReelPlayer(
             repeatMode = Player.REPEAT_MODE_ONE
             setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
             setHandleAudioBecomingNoisy(true)
-            setMediaItem(MediaItem.fromUri(uri)); prepare()
+            val item = MediaItem.Builder().setUri(uri).apply { cacheKey?.let(::setCustomCacheKey) }.build()
+            setMediaItem(item); prepare()
         }
     }
     DisposableEffect(lifecycle, player) {

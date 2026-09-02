@@ -7,6 +7,8 @@ import com.linkup.routes.authRoutes
 import com.linkup.service.JwtService
 import com.linkup.reels.ReelRepository
 import com.linkup.reels.reelRoutes
+import com.linkup.posts.PostRepository
+import com.linkup.posts.postRoutes
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
@@ -51,5 +53,6 @@ fun Application.module() {
         }
         authRoutes(userRepository)
         reelRoutes(ReelRepository())
+        postRoutes(PostRepository())
     }
 }

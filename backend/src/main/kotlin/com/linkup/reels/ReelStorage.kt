@@ -35,7 +35,7 @@ class LocalReelStorage(directory: Path) : ReelStorage {
     override val type = "local"
     private val root = directory.toAbsolutePath().normalize()
     private fun resolve(key: String): Path {
-        if (!key.matches(Regex("reels/[a-f0-9-]+/[a-f0-9-]+/[a-f0-9-]+\\.(mp4|jpg)"))) throw ReelFailure(400, "Invalid media key.")
+        if (!key.matches(Regex("(reels|posts)/[a-f0-9-]+/[a-f0-9-]+/[a-f0-9-]+\\.(mp4|jpg|jpeg|png|webp)"))) throw ReelFailure(400, "Invalid media key.")
         return root.resolve(key).normalize().also { require(it.startsWith(root)) }
     }
     override fun put(key: String, file: Path, contentType: String) {
@@ -118,7 +118,7 @@ class SupabaseReelStorage(
         val request = GetObjectRequest.builder().bucket(bucket).key(key).build()
         return presigner.presignGetObject(
             GetObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofMinutes(15))
+                .signatureDuration(Duration.ofHours(1))
                 .getObjectRequest(request)
                 .build(),
         ).url().toString()

@@ -3,13 +3,15 @@
 ## Phạm vi đã triển khai trong source
 
 - Reels feed vuốt dọc, autoplay video đang hiển thị, chạm để pause/play, kéo thanh tiến trình để tua, nhấn đúp trái/phải để lùi/tiến 10 giây, mute/unmute, loading/error/retry.
-- Video hiện tại được ưu tiên tải trước; khi phát được, app chuẩn bị đúng hai video liền kề `n-1` và `n+1` để vuốt tới/lùi nhanh mà không tải cả feed.
+- Video dùng cache LRU chung 300 MiB theo `reelId`. Khi đăng nhập, app cache trước 3 MiB đầu của 3 Reel đầu; lúc lướt, app tiếp tục làm nóng 3 Reel phía trước và 2 Reel vừa xem phía sau. Player đang phát sẽ tự ghi phần còn lại vào cùng cache nên vuốt lại không tải lại video.
+- Video hiện tại được ưu tiên tải trước; khi phát được, app vẫn chuẩn bị player liền kề để chuyển trang mượt. Warm-up chỉ tải đoạn đầu, không tải toàn bộ feed và không để cache tăng không giới hạn.
 - Player dừng khi mở comment, sang trang khác hoặc app vào background; giải phóng player khi rời video.
 - Hiển thị tác giả, avatar (hoặc initials), caption, số like/comment thật. Chạm tác giả để lọc Reels của họ.
 - My reels để xem/xóa video của tài khoản hiện tại; có xác nhận trước khi xóa.
 - Like/unlike lưu DB; nút bị khóa trong khi gửi để tránh thao tác chồng nhau.
 - Comment có phân trang, gửi, retry giữ cùng request ID, xóa comment của mình; ô nhập có xử lý IME/navigation bar.
 - Share mở Android share sheet với URL video công khai. Không giả lập bộ đếm share vì không biết người dùng có gửi thật hay không.
+- Với Supabase Storage, API feed trả signed URL trực tiếp để Media3 bỏ một lượt redirect qua backend. Cache key vẫn là `reelId`, nên URL hết hạn/được ký lại không làm mất cache cũ; link share vẫn dùng route backend ổn định.
 - Not interested lưu theo user/reel, loại khỏi feed và giảm affinity với tác giả. API có DELETE hidden để bỏ ẩn; UI quản lý toàn bộ mục đã ẩn chưa triển khai.
 - Upload bằng Photo Picker: copy có giới hạn vào cache, preview, chọn cover từ bốn frame, caption, tiến trình, cancel/retry.
 - Server kiểm tra MP4/H.264, duration hợp lệ >0, kích thước <=4096 px mỗi cạnh, file <=50 MiB; JPEG cover <=1 MiB/2048 px.
