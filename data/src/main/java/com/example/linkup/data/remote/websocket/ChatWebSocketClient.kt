@@ -44,6 +44,7 @@ class ChatWebSocketClient @Inject constructor(
     private var reconnectJob: Job? = null
     private var shouldKeepAlive = false
     private var connectedToken: String? = null
+    private var reconnectAttempts = 0
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
@@ -80,7 +81,7 @@ class ChatWebSocketClient @Inject constructor(
                 .url(wsUrl)
                 .build()
 
-            Log.d(TAG, "Connecting to WebSocket: $wsUrl")
+            Log.d(TAG, "Connecting to WebSocket: ${sanitizeUrl(wsUrl)}")
             webSocket = okHttpClient.newWebSocket(request, createWebSocketListener())
         }
     }
@@ -115,6 +116,7 @@ class ChatWebSocketClient @Inject constructor(
         textContent: String?,
         type: String = "TEXT",
         tempId: String? = null,
+        mediaUrl: String? = null,
     ): Boolean {
         val frame = WebSocketFrameDto(
             event = "SEND_MESSAGE",
@@ -123,6 +125,7 @@ class ChatWebSocketClient @Inject constructor(
                 conversationId = conversationId,
                 type = type,
                 textContent = textContent,
+                mediaUrl = mediaUrl,
             ),
             tempId = tempId
         )
@@ -149,6 +152,7 @@ class ChatWebSocketClient @Inject constructor(
     private fun createWebSocketListener() = object : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
             Log.d(TAG, "WebSocket connected successfully")
+            reconnectAttempts = 0
             _connectionState.value = ConnectionState.CONNECTED
         }
 
@@ -184,9 +188,11 @@ class ChatWebSocketClient @Inject constructor(
         if (!shouldKeepAlive) return
         reconnectJob?.cancel()
         reconnectJob = scope.launch {
-            delay(2000)
+            val delayMs = RECONNECT_BASE_DELAY_MS shl minOf(reconnectAttempts, MAX_BACKOFF_SHIFT)
+            reconnectAttempts++
+            delay(delayMs)
             if (shouldKeepAlive && _connectionState.value == ConnectionState.DISCONNECTED) {
-                Log.d(TAG, "Attempting WebSocket auto-reconnect...")
+                Log.d(TAG, "Attempting WebSocket auto-reconnect (attempt $reconnectAttempts, retry in ${delayMs}ms)")
                 connect()
             }
         }
@@ -201,7 +207,13 @@ class ChatWebSocketClient @Inject constructor(
         return "$normalizedBase/chat/ws?token=$token"
     }
 
+    private fun sanitizeUrl(url: String): String =
+        url.replace(Regex("token=[^&]*"), "token=***")
+
     companion object {
         private const val TAG = "ChatWebSocketClient"
+        private const val RECONNECT_BASE_DELAY_MS = 2000L
+        // 2s -> 4s -> 8s -> 16s -> 30s cap
+        private const val MAX_BACKOFF_SHIFT = 4
     }
 }

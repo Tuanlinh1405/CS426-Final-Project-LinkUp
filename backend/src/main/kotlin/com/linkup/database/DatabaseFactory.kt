@@ -95,7 +95,8 @@ object DatabaseFactory {
             "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS location VARCHAR(120) NULL",
             "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS website VARCHAR(255) NULL",
             "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS name VARCHAR(100) NULL",
-            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS type VARCHAR(20) DEFAULT 'DIRECT'"
+            "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS type VARCHAR(20) DEFAULT 'DIRECT'",
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_url TEXT NULL"
         ).forEach { exec(it) }
     }
 

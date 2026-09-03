@@ -87,6 +87,46 @@ fun CircleAvatar(
 }
 
 /**
+ * Avatar for a group: up to two member avatars offset from each other, so a group
+ * reads differently from a one-to-one chat at a glance.
+ *
+ * [members] is (avatarUrl, initials) per member, already trimmed to the ones to show.
+ */
+@Composable
+fun GroupAvatar(
+    members: List<Pair<String?, String>>,
+    fallbackInitials: String,
+    size: Dp = 48.dp,
+    modifier: Modifier = Modifier
+) {
+    if (members.size < 2) {
+        val single = members.firstOrNull()
+        CircleAvatar(single?.first, single?.second ?: fallbackInitials, size, modifier)
+        return
+    }
+
+    val faceSize = size * 0.66f
+    Box(modifier.size(size)) {
+        CircleAvatar(
+            avatarUrl = members[1].first,
+            initials = members[1].second,
+            size = faceSize,
+            modifier = Modifier.align(Alignment.BottomEnd)
+        )
+        Box(
+            Modifier
+                .align(Alignment.TopStart)
+                .size(faceSize + 3.dp)
+                .clip(CircleShape)
+                .background(Color.White),
+            contentAlignment = Alignment.Center
+        ) {
+            CircleAvatar(members[0].first, members[0].second, faceSize)
+        }
+    }
+}
+
+/**
  * One person in a list.
  *
  * The trailing control is a slot rather than a fixed button: follower lists want a

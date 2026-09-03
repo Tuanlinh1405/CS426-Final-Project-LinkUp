@@ -30,6 +30,7 @@ class DeviceImageReader @Inject constructor(
     companion object {
         const val AVATAR_MAX_DIMENSION = 512
         const val COVER_MAX_DIMENSION = 1440
+        const val CHAT_MAX_DIMENSION = 1600
         private const val JPEG_QUALITY = 85
     }
 
