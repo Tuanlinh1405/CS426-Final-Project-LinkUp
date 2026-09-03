@@ -4,6 +4,7 @@ import com.linkup.database.DatabaseFactory
 import com.linkup.config.EnvConfig
 import com.linkup.repository.UserRepository
 import com.linkup.routes.authRoutes
+import com.linkup.routes.datingRoutes
 import com.linkup.service.JwtService
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
@@ -42,11 +43,13 @@ fun Application.module() {
     DatabaseFactory.init()
 
     val userRepository = UserRepository()
+    val datingRepository = com.linkup.repository.DatingRepository()
 
     routing {
         get("/") {
             call.respondText("LinkUp Backend is running!")
         }
         authRoutes(userRepository)
+        datingRoutes(datingRepository)
     }
 }

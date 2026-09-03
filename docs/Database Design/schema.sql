@@ -130,6 +130,7 @@ CREATE TABLE IF NOT EXISTS dating_profiles (
     user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     bio TEXT,
     interests TEXT,
+    looking_for VARCHAR(20) NOT NULL DEFAULT 'RELATIONSHIP',
     preferred_gender VARCHAR(20),
     min_age INT,
     max_age INT,
