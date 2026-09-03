@@ -111,6 +111,7 @@ class DatingProfileEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var user by UserEntity referencedOn DatingProfilesTable.userId
     var bio by DatingProfilesTable.bio
     var interests by DatingProfilesTable.interests
+    var lookingFor by DatingProfilesTable.lookingFor
     var preferredGender by DatingProfilesTable.preferredGender
     var minAge by DatingProfilesTable.minAge
     var maxAge by DatingProfilesTable.maxAge

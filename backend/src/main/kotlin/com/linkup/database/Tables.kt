@@ -178,6 +178,7 @@ object DatingProfilesTable : UUIDTable("dating_profiles") {
     val userId = reference("user_id", UsersTable, onDelete = ReferenceOption.CASCADE).uniqueIndex()
     val bio = text("bio").nullable()
     val interests = text("interests").nullable()
+    val lookingFor = varchar("looking_for", 20).default("RELATIONSHIP")
     val preferredGender = varchar("preferred_gender", 20).nullable()
     val minAge = integer("min_age").nullable()
     val maxAge = integer("max_age").nullable()
