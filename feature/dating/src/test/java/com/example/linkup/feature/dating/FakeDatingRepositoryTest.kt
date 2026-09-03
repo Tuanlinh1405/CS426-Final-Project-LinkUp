@@ -4,10 +4,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.coroutines.runBlocking
 
 class FakeDatingRepositoryTest {
     @Test
-    fun `candidate who liked current user is prioritized`() {
+    fun `candidate who liked current user is prioritized`() = runBlocking {
         val repository = FakeDatingRepository(
             initialCandidates = listOf(
                 DatingCandidate(
@@ -31,7 +32,7 @@ class FakeDatingRepositoryTest {
     }
 
     @Test
-    fun `pass hides candidate until passed candidates are reset`() {
+    fun `pass hides candidate until passed candidates are reset`() = runBlocking {
         val repository = FakeDatingRepository()
 
         repository.swipe("u3", SwipeDecision.PASS)
@@ -42,7 +43,7 @@ class FakeDatingRepositoryTest {
     }
 
     @Test
-    fun `reviewing passed candidates does not bring back liked candidate`() {
+    fun `reviewing passed candidates does not bring back liked candidate`() = runBlocking {
         val repository = FakeDatingRepository()
 
         repository.swipe("u2", SwipeDecision.LIKE)
@@ -55,7 +56,7 @@ class FakeDatingRepositoryTest {
     }
 
     @Test
-    fun `empty discover list is returned after all candidates are passed`() {
+    fun `empty discover list is returned after all candidates are passed`() = runBlocking {
         val repository = FakeDatingRepository()
 
         repository.swipe("u2", SwipeDecision.PASS)
@@ -66,7 +67,7 @@ class FakeDatingRepositoryTest {
     }
 
     @Test
-    fun `mutual like creates one match`() {
+    fun `mutual like creates one match`() = runBlocking {
         val repository = FakeDatingRepository(
             initialCandidates = listOf(
                 DatingCandidate(
@@ -88,7 +89,7 @@ class FakeDatingRepositoryTest {
     }
 
     @Test
-    fun `one sided like does not create match`() {
+    fun `one sided like does not create match`() = runBlocking {
         val repository = FakeDatingRepository(
             initialCandidates = listOf(
                 DatingCandidate(

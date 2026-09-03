@@ -1,6 +1,7 @@
 package com.linkup.routes
 
 import com.linkup.model.DatingProfileRequest
+import com.linkup.model.DatingProfileResponse
 import com.linkup.model.SwipeRequest
 import com.linkup.repository.DatingRepository
 import io.ktor.http.HttpStatusCode
@@ -19,7 +20,18 @@ fun Route.datingRoutes(repository: DatingRepository) {
         route("/dating") {
             get("/profile") {
                 val userId = call.currentUserId() ?: return@get call.respond(HttpStatusCode.Unauthorized)
-                call.respond(repository.getProfile(userId) ?: DatingProfileRequest())
+                call.respond(
+                    repository.getProfile(userId)
+                        ?: DatingProfileResponse(
+                            userId = userId.toString(),
+                            bio = null,
+                            interests = emptyList(),
+                            lookingFor = "RELATIONSHIP",
+                            preferredGender = null,
+                            minAge = null,
+                            maxAge = null
+                        )
+                )
             }
 
             put("/profile") {

@@ -19,7 +19,7 @@ data class DatingProfileRequestDto(
 
 @Serializable
 data class DatingProfileResponseDto(
-    val userId: String,
+    val userId: String? = null,
     val bio: String? = null,
     val interests: List<String> = emptyList(),
     val lookingFor: String = "RELATIONSHIP",

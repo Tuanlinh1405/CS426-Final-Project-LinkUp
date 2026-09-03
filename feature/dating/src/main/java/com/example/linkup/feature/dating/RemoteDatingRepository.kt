@@ -6,17 +6,17 @@ import javax.inject.Inject
 /** Maps the backend contract to Dating domain models. */
 class RemoteDatingRepository @Inject constructor(
     private val api: DatingApiService
-) {
-    suspend fun getProfile(): DatingProfile? = api.getProfile().body()?.toDomain()
+) : DatingRepository {
+    override suspend fun getProfile(): DatingProfile? = api.getProfile().body()?.toDomain()
 
-    suspend fun updateProfile(profile: DatingProfile): DatingProfile {
+    override suspend fun updateProfile(profile: DatingProfile): DatingProfile {
         return api.updateProfile(profile.toRequest()).requireBody().toDomain()
     }
 
-    suspend fun getDiscoverCandidates(): List<DatingCandidate> =
+    override suspend fun getDiscoverCandidates(): List<DatingCandidate> =
         api.getDiscoverCandidates().requireBody().map { it.toDomain() }
 
-    suspend fun swipe(targetUserId: String, decision: SwipeDecision): SwipeResult {
+    override suspend fun swipe(targetUserId: String, decision: SwipeDecision): SwipeResult {
         val response = api.swipe(SwipeRequestDto(targetUserId, decision.name)).requireBody()
         return SwipeResult(
             decision = decision,
@@ -25,8 +25,12 @@ class RemoteDatingRepository @Inject constructor(
         )
     }
 
-    suspend fun getMatches(): List<DatingMatch> =
+    override suspend fun getMatches(): List<DatingMatch> =
         api.getMatches().requireBody().map { it.toDomain() }
+
+    override suspend fun resetPassedCandidates() {
+        // PASS history is persisted by the backend; it is not reset locally.
+    }
 
     private fun DatingProfile.toRequest() = DatingProfileRequestDto(
         bio = bio,
@@ -38,7 +42,7 @@ class RemoteDatingRepository @Inject constructor(
     )
 
     private fun DatingProfileResponseDto.toDomain() = DatingProfile(
-        userId = userId,
+        userId = userId.orEmpty(),
         bio = bio.orEmpty(),
         interests = interests,
         lookingFor = runCatching { LookingFor.valueOf(lookingFor) }.getOrDefault(LookingFor.RELATIONSHIP),

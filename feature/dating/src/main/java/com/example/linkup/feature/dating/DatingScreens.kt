@@ -202,7 +202,7 @@ fun CandidateProfileScreen(
             }
             if (candidate.interests.isEmpty()) Text("No interests added yet.", color = LinkMuted)
             TextButton(onClick = onViewProfile) {
-                Text("View profile")
+                Text("View full profile")
             }
             Row(
                 Modifier.fillMaxWidth().padding(vertical = 12.dp),

@@ -3,12 +3,12 @@ package com.example.linkup.feature.dating
 import com.example.linkup.data.model.User
 
 interface DatingRepository {
-    fun getProfile(): DatingProfile?
-    fun updateProfile(profile: DatingProfile): DatingProfile
-    fun getDiscoverCandidates(): List<DatingCandidate>
-    fun swipe(targetUserId: String, decision: SwipeDecision): SwipeResult
-    fun getMatches(): List<DatingMatch>
-    fun resetPassedCandidates()
+    suspend fun getProfile(): DatingProfile?
+    suspend fun updateProfile(profile: DatingProfile): DatingProfile
+    suspend fun getDiscoverCandidates(): List<DatingCandidate>
+    suspend fun swipe(targetUserId: String, decision: SwipeDecision): SwipeResult
+    suspend fun getMatches(): List<DatingMatch>
+    suspend fun resetPassedCandidates()
 }
 
 /** In-memory dating source for the MVP UI and unit tests. */
@@ -30,15 +30,15 @@ class FakeDatingRepository(
     private val passedThisSession = mutableSetOf<String>()
     private val matches = mutableListOf<DatingMatch>()
 
-    override fun getProfile(): DatingProfile = profile
+    override suspend fun getProfile(): DatingProfile = profile
 
-    override fun updateProfile(profile: DatingProfile): DatingProfile {
+    override suspend fun updateProfile(profile: DatingProfile): DatingProfile {
         require(profile.userId == currentUser.id) { "Profile belongs to another user" }
         this.profile = profile
         return profile
     }
 
-    override fun getDiscoverCandidates(): List<DatingCandidate> {
+    override suspend fun getDiscoverCandidates(): List<DatingCandidate> {
         return candidates
             .asSequence()
             .filter { it.user.id != currentUser.id }
@@ -51,7 +51,7 @@ class FakeDatingRepository(
             .toList()
     }
 
-    override fun swipe(targetUserId: String, decision: SwipeDecision): SwipeResult {
+    override suspend fun swipe(targetUserId: String, decision: SwipeDecision): SwipeResult {
         require(candidates.any { it.user.id == targetUserId }) { "Candidate not found" }
         require(targetUserId != currentUser.id) { "Cannot swipe yourself" }
 
@@ -70,9 +70,9 @@ class FakeDatingRepository(
         return SwipeResult(decision = decision, isMatch = true, match = match)
     }
 
-    override fun getMatches(): List<DatingMatch> = matches.toList()
+    override suspend fun getMatches(): List<DatingMatch> = matches.toList()
 
-    override fun resetPassedCandidates() {
+    override suspend fun resetPassedCandidates() {
         passedThisSession.clear()
     }
 

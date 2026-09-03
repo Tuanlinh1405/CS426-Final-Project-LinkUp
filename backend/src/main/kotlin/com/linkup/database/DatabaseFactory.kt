@@ -98,7 +98,8 @@ object DatabaseFactory {
             "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS name VARCHAR(100) NULL",
             "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS type VARCHAR(20) DEFAULT 'DIRECT'",
             "ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_url TEXT NULL",
-            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS shared_content_id UUID NULL"
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS shared_content_id UUID NULL",
+            "ALTER TABLE dating_profiles ADD COLUMN IF NOT EXISTS looking_for VARCHAR(20) NOT NULL DEFAULT 'RELATIONSHIP'"
         ).forEach { exec(it) }
     }
 

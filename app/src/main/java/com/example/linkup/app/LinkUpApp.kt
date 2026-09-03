@@ -64,6 +64,12 @@ import com.example.linkup.feature.dating.PublicProfileScreen
 import com.example.linkup.feature.dating.FakeDatingRepository
 import com.example.linkup.feature.dating.DatingViewModel
 import com.example.linkup.feature.dating.DatingEffect
+import com.example.linkup.feature.dating.DatingApiService
+import com.example.linkup.feature.dating.RemoteDatingRepository
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import com.example.linkup.feature.dating.SwipeDecision
 import com.example.linkup.feature.feed.CreatePostScreen
 import com.example.linkup.feature.feed.FeedScreen
@@ -100,7 +106,17 @@ fun LinkUpApp() {
     val searchRepository = remember { SearchRepositoryImpl() }
     val authSession by AuthSession.state.collectAsState()
     DisposableEffect(reelsRepository) { onDispose { reelsRepository.close() } }
-    val datingViewModel = remember { DatingViewModel(FakeDatingRepository(), repository.currentUser()) }
+    val datingViewModel = remember {
+        DatingViewModel(
+            RemoteDatingRepository(
+                EntryPointAccessors.fromApplication(
+                    context.applicationContext,
+                    DatingApiEntryPoint::class.java
+                ).datingApiService()
+            ),
+            repository.currentUser()
+        )
+    }
     val datingUiState by datingViewModel.uiState.collectAsState()
     val navigator = remember { AppNavigator() }
     // Hoisted: the feed's bell badge and the notifications inbox read one instance,
@@ -179,6 +195,9 @@ fun LinkUpApp() {
         if (current == AppRoute.FEED) {
             notificationsViewModel.refreshUnreadCount()
             friendsViewModel.refreshCounts()
+        }
+        if (current == AppRoute.DATING_DISCOVER) {
+            datingViewModel.refresh()
         }
     }
     BackHandler(enabled = current !in setOf(AppRoute.SPLASH, AppRoute.LOGIN, AppRoute.FEED)) { back() }
@@ -262,7 +281,7 @@ fun LinkUpApp() {
                     repository = postRepository,
                     onCreatePost = { goTo(AppRoute.CREATE_POST) },
                     onOpenPost = { selectedPost = it; selectedPostId = it.id; goTo(AppRoute.POST_DETAIL) },
-                    onProfile = { reset(AppRoute.PROFILE) },
+                    onProfile = { goTo(AppRoute.DATING_PROFILE) },
                     onSearch = { goTo(AppRoute.SEARCH) },
                     onNotifications = { goTo(AppRoute.NOTIFICATIONS) },
                     onAi = { selectedAiConversationId = null; aiPostToAnalyzeId = null; goTo(AppRoute.AI_CHAT) },
@@ -429,7 +448,7 @@ fun LinkUpApp() {
                 }
                 AppRoute.DATING_DISCOVER -> DatingDiscoverScreen(
                     candidate = datingUiState.candidates.firstOrNull(),
-                    onProfile = { goTo(AppRoute.DATING_PROFILE) },
+                    onProfile = { reset(AppRoute.PROFILE) },
                     onMatches = { goTo(AppRoute.DATING_MATCHES) },
                     onOpenProfile = { candidate -> selectedDatingCandidate = candidate; goTo(AppRoute.DATING_CANDIDATE_PROFILE) },
                     onPass = { datingViewModel.swipe(SwipeDecision.PASS) },
@@ -491,4 +510,10 @@ private data class Screen(val route: AppRoute, val arg: String?)
 
 private const val SCREEN_SLIDE_MS = 280
 private const val SCREEN_FADE_MS = 200
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface DatingApiEntryPoint {
+    fun datingApiService(): DatingApiService
+}
 private const val PRIMARY_NAV_ANIMATION_MS = 180

@@ -10,66 +10,101 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.io.IOException
 
 class DatingViewModel(
     private val repository: DatingRepository,
     currentUser: User
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(DatingUiState(profile = repository.getProfile() ?: defaultDatingProfile(currentUser)))
+    private val _uiState = MutableStateFlow(DatingUiState(profile = defaultDatingProfile(currentUser)))
     val uiState: StateFlow<DatingUiState> = _uiState.asStateFlow()
 
     private val _effects = MutableSharedFlow<DatingEffect>()
     val effects: SharedFlow<DatingEffect> = _effects.asSharedFlow()
+    private val refreshMutex = Mutex()
 
     init {
         refresh()
     }
 
     fun refresh() {
-        _uiState.value = _uiState.value.copy(
-            error = null,
-            candidates = repository.getDiscoverCandidates(),
-            matches = repository.getMatches(),
-            isLoading = false
-        )
+        viewModelScope.launch {
+            refreshMutex.withLock {
+                runAction {
+                    _uiState.value.copy(
+                        error = null,
+                        profile = repository.getProfile() ?: _uiState.value.profile,
+                        candidates = repository.getDiscoverCandidates(),
+                        matches = repository.getMatches(),
+                        isLoading = false
+                    )
+                }
+            }
+        }
     }
 
     fun saveProfile(profile: DatingProfile) {
-        runAction(isSaving = true) {
-            repository.updateProfile(profile)
-            _uiState.value.copy(profile = profile)
+        viewModelScope.launch {
+            runAction(isSaving = true) {
+                val savedProfile = repository.updateProfile(profile)
+                _uiState.value.copy(profile = savedProfile)
+            }
         }
     }
 
     fun swipe(decision: SwipeDecision) {
         val candidate = _uiState.value.candidates.firstOrNull() ?: return
-        runAction(isSwiping = true) {
-            val result = repository.swipe(candidate.user.id, decision)
-            if (result.isMatch && result.match != null) {
-                viewModelScope.launch { _effects.emit(DatingEffect.MatchCreated(result.match)) }
+        viewModelScope.launch {
+            runAction(isSwiping = true) {
+                val result = repository.swipe(candidate.user.id, decision)
+                if (result.isMatch && result.match != null) {
+                    _effects.emit(DatingEffect.MatchCreated(result.match))
+                }
+                _uiState.value.copy(
+                    candidates = repository.getDiscoverCandidates(),
+                    matches = repository.getMatches()
+                )
             }
-            _uiState.value.copy(
-                candidates = repository.getDiscoverCandidates(),
-                matches = repository.getMatches()
-            )
         }
     }
 
     fun reviewPassedCandidates() {
-        repository.resetPassedCandidates()
-        refresh()
+        viewModelScope.launch {
+            runAction {
+                repository.resetPassedCandidates()
+                refresh()
+                _uiState.value
+            }
+        }
     }
 
-    private fun runAction(
+    private suspend fun runAction(
         isSaving: Boolean = false,
         isSwiping: Boolean = false,
-        action: () -> DatingUiState
+        action: suspend () -> DatingUiState
     ) {
         try {
             _uiState.value = _uiState.value.copy(isSaving = isSaving, isSwiping = isSwiping, error = null)
             _uiState.value = action().copy(isSaving = false, isSwiping = false)
+        } catch (exception: IOException) {
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                isSaving = false,
+                isSwiping = false,
+                error = "Cannot connect to the dating server"
+            )
         } catch (exception: IllegalArgumentException) {
             _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                isSaving = false,
+                isSwiping = false,
+                error = exception.message ?: "Dating action failed"
+            )
+        } catch (exception: IllegalStateException) {
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
                 isSaving = false,
                 isSwiping = false,
                 error = exception.message ?: "Dating action failed"

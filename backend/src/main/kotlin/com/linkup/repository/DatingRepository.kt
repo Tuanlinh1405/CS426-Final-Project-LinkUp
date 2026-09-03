@@ -3,7 +3,6 @@ package com.linkup.repository
 import com.linkup.database.DatingMatchesTable
 import com.linkup.database.DatingMatchEntity
 import com.linkup.database.DatingProfilesTable
-import com.linkup.database.DatingProfileEntity
 import com.linkup.database.DatingSwipesTable
 import com.linkup.database.NotificationsTable
 import com.linkup.database.UserEntity
@@ -28,6 +27,10 @@ import java.util.UUID
 
 class DatingRepository {
     fun getProfile(userId: UUID): DatingProfileResponse? = transaction {
+        getProfileInTransaction(userId)
+    }
+
+    private fun getProfileInTransaction(userId: UUID): DatingProfileResponse? =
         DatingProfilesTable
             .selectAll()
             .where { DatingProfilesTable.userId eq userId }
@@ -43,7 +46,6 @@ class DatingRepository {
                     maxAge = row[DatingProfilesTable.maxAge]
                 )
             }
-    }
 
     fun upsertProfile(userId: UUID, request: DatingProfileRequest): DatingProfileResponse = transaction {
         val existing = DatingProfilesTable.selectAll().where { DatingProfilesTable.userId eq userId }.singleOrNull()
@@ -69,7 +71,7 @@ class DatingRepository {
     }
 
     fun discover(userId: UUID): List<DatingCandidateResponse> = transaction {
-        val profile = getProfile(userId)
+        val profile = getProfileInTransaction(userId)
         val swiped = DatingSwipesTable.selectAll()
             .where { DatingSwipesTable.swiperId eq userId }
             .map { it[DatingSwipesTable.targetId].value }
@@ -88,8 +90,10 @@ class DatingRepository {
             .filter { it != userId }
             .toSet()
 
-        DatingProfileEntity.all().asSequence()
-            .map { datingProfile -> datingProfile.user }
+        val candidateProfiles = DatingProfilesTable.selectAll()
+            .associateBy { it[DatingProfilesTable.userId].value }
+
+        UserEntity.all().toList().asSequence()
             .filter { it.id.value != userId && it.id.value !in swiped }
             .filter { it.id.value !in matchedUserIds }
             .filter { candidate ->
@@ -98,8 +102,8 @@ class DatingRepository {
                     candidate.gender.equals(profile?.preferredGender, ignoreCase = true)
             }
             .map { user ->
-                val candidateProfile = DatingProfileEntity.find { DatingProfilesTable.userId eq user.id.value }.singleOrNull()
-                val candidateInterests = candidateProfile?.interests
+                val candidateProfile = candidateProfiles[user.id.value]
+                val candidateInterests = candidateProfile?.get(DatingProfilesTable.interests)
                     ?.split(",")
                     ?.map(String::trim)
                     ?.filter(String::isNotBlank)
@@ -113,14 +117,14 @@ class DatingRepository {
                 val score = commonInterests * 30 +
                     (if (ageMatches) 20 else 0) +
                     (if (likedYou) 40 else 0) +
-                    (if (!candidateProfile?.bio.isNullOrBlank()) 10 else 0)
+                    (if (!candidateProfile?.get(DatingProfilesTable.bio).isNullOrBlank()) 10 else 0)
                 DatingCandidateResponse(
                     userId = user.id.value.toString(),
                     name = user.fullName ?: user.username,
                     username = user.username,
                     initials = (user.fullName ?: user.username).split(" ").take(2).mapNotNull { it.firstOrNull()?.toString() }.joinToString(""),
                     age = age,
-                    bio = candidateProfile?.bio,
+                    bio = candidateProfile?.get(DatingProfilesTable.bio),
                     interests = candidateInterests,
                     likedYou = likedYou,
                     compatibilityScore = score
