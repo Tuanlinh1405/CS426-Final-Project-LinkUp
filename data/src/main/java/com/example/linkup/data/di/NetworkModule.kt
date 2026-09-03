@@ -1,5 +1,6 @@
 package com.example.linkup.data.di
 
+import com.example.linkup.data.BuildConfig
 import com.example.linkup.data.remote.api.AuthApiService
 import com.example.linkup.data.remote.api.ChatApiService
 import com.example.linkup.data.remote.api.FriendApiService
@@ -27,7 +28,7 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideBaseUrl(): String = "http://10.0.2.2:8080/"
+    fun provideBaseUrl(): String = BuildConfig.API_BASE_URL
 
     @Provides
     @Singleton

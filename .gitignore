@@ -18,7 +18,9 @@ captures/
 # Local secrets - commit example files only
 .env
 .env.*
+*.env
 !.env.example
+!.env.storage.example
 *.jks
 *.keystore
 keystore.properties
@@ -28,6 +30,11 @@ secrets.properties
 node_modules/
 postgres-data/
 minio-data/
+.reels-media/
+.reel-seed/
+.reel-seed-long/
+__pycache__/
+*.py[cod]
 
 # Operating system files
 .DS_Store
