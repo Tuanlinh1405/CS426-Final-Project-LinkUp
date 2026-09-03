@@ -8,6 +8,7 @@ import java.nio.file.Path
 object EnvConfig {
     private val dotenv: Dotenv by lazy { load(findEnvFile(Path.of(""), System.getenv("LINKUP_ENV_FILE")), ".env") }
     private val storageDotenv: Dotenv by lazy { load(runtimeDirectory.resolve(".env.storage"), ".env.storage") }
+    private val aiDotenv: Dotenv by lazy { load(runtimeDirectory.resolve(".env.ai"), ".env.ai") }
 
     val PORT: Int get() = (dotenv["PORT"] ?: "8080").toIntOrNull()
         ?.takeIf { it in 1..65535 } ?: error("PORT must be a number between 1 and 65535.")
@@ -19,10 +20,14 @@ object EnvConfig {
     val JWT_AUDIENCE: String get() = dotenv["JWT_AUDIENCE"] ?: "linkup"
     val MEDIA_ROOT: String get() = optional("MEDIA_ROOT") ?: runtimeDirectory.resolve("uploads").toString()
     val PUBLIC_BASE_URL: String get() = optional("PUBLIC_BASE_URL") ?: "http://10.0.2.2:$PORT"
+    val GEMINI_API_KEY: String? get() = optional("GEMINI_API_KEY")
+    val GEMINI_MODEL: String get() = optional("GEMINI_MODEL") ?: "gemini-3.6-flash"
     val runtimeDirectory: Path get() = findEnvFile(Path.of(""), System.getenv("LINKUP_ENV_FILE")).parent
 
     fun optional(name: String): String? =
-        dotenv[name]?.takeIf(String::isNotBlank) ?: storageDotenv[name]?.takeIf(String::isNotBlank)
+        dotenv[name]?.takeIf(String::isNotBlank)
+            ?: storageDotenv[name]?.takeIf(String::isNotBlank)
+            ?: aiDotenv[name]?.takeIf(String::isNotBlank)
 
     private fun required(name: String): String = dotenv[name]?.takeIf(String::isNotBlank)
         ?: error("Missing $name. Configure backend/.env or an OS environment variable; see backend/README.md.")

@@ -161,6 +161,9 @@ object MessagesTable : UUIDTable("messages") {
     // storage key, so reading through mediaId would cost a join plus a URL rebuild on
     // every message fetch.
     val mediaUrl = text("media_url").nullable()
+    // Target of an in-app POST/REEL share. Kept separate from the preview URL so the
+    // receiver can navigate to the canonical entity even if its thumbnail changes.
+    val sharedContentId = uuid("shared_content_id").nullable()
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
 }
 
@@ -224,6 +227,14 @@ object AIMessagesTable : UUIDTable("ai_messages") {
     val role = varchar("role", 20)
     val content = text("content")
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+}
+
+/** Reuses an analysis while the post, prompt version and model configuration are unchanged. */
+object AIAnalysisCacheTable : Table("ai_analysis_cache") {
+    val fingerprint = varchar("fingerprint", 64)
+    val answer = text("answer")
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    override val primaryKey = PrimaryKey(fingerprint)
 }
 
 /** 9. Notifications */

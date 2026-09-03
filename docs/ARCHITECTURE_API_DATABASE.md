@@ -302,7 +302,8 @@ users 1---n posts 1---n post_media n---1 media
   |---1 dating_profiles 1---n dating_photos
   |---n dating_swipes
   |---n dating_matches
-  └---n ai_conversations 1---n ai_messages
+  ├---n ai_conversations 1---n ai_messages
+  └--- AI post analysis results are reused through ai_analysis_cache
 ```
 
 Constraint tối thiểu:

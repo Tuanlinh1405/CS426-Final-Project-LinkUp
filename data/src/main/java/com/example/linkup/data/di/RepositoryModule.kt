@@ -1,5 +1,7 @@
 package com.example.linkup.data.di
 
+import com.example.linkup.data.ai.AiRepository
+import com.example.linkup.data.ai.AiRepositoryImpl
 import com.example.linkup.data.repository.AuthRepository
 import com.example.linkup.data.repository.AuthRepositoryImpl
 import com.example.linkup.data.repository.ChatRepository
@@ -19,6 +21,10 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindAiRepository(repository: AiRepositoryImpl): AiRepository
 
     @Binds
     @Singleton

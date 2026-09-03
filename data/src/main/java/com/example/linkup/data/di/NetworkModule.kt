@@ -1,6 +1,7 @@
 package com.example.linkup.data.di
 
 import com.example.linkup.data.BuildConfig
+import com.example.linkup.data.ai.AiApi
 import com.example.linkup.data.remote.api.AuthApiService
 import com.example.linkup.data.remote.api.ChatApiService
 import com.example.linkup.data.remote.api.FriendApiService
@@ -84,6 +85,27 @@ object NetworkModule {
     @Singleton
     fun provideChatApiService(retrofit: Retrofit): ChatApiService {
         return retrofit.create(ChatApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAiApi(
+        baseUrl: String,
+        json: Json,
+        okHttpClient: OkHttpClient,
+    ): AiApi {
+        // Normal REST calls still fail fast at 30s. Only text follow-ups to Gemini get
+        // extra headroom; post analysis itself now returns immediately and is polled.
+        val aiClient = okHttpClient.newBuilder()
+            .readTimeout(90, TimeUnit.SECONDS)
+            .callTimeout(100, TimeUnit.SECONDS)
+            .build()
+        return Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .client(aiClient)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(AiApi::class.java)
     }
 
     @Provides

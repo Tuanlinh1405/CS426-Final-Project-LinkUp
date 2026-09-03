@@ -30,6 +30,7 @@ data class MessageResponse(
     val type: String = "TEXT",
     val textContent: String? = null,
     val mediaUrl: String? = null,
+    val sharedContentId: String? = null,
     val status: String = "SENT",
     val createdAt: String = ""
 )
@@ -50,6 +51,7 @@ data class SendMessageRequest(
     val textContent: String? = null,
     val type: String = "TEXT",
     val mediaUrl: String? = null,
+    val sharedContentId: String? = null,
     val tempId: String? = null
 )
 

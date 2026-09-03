@@ -36,6 +36,7 @@ import com.example.linkup.core.navigation.AppNavigator
 import com.example.linkup.core.navigation.AppRoute
 import com.example.linkup.core.navigation.NavDirection
 import com.example.linkup.data.model.Conversation
+import com.example.linkup.data.model.SharedContent
 import com.example.linkup.data.feed.FeedPost
 import com.example.linkup.data.feed.PostRepositoryImpl
 import com.example.linkup.data.network.AuthSession
@@ -44,6 +45,7 @@ import com.example.linkup.data.search.SearchRepositoryImpl
 import com.example.linkup.data.repository.FakeLinkUpRepository
 import com.example.linkup.feature.ai.AiChatScreen
 import com.example.linkup.feature.ai.AiConversationsScreen
+import com.example.linkup.feature.ai.AiViewModel
 import com.example.linkup.feature.auth.login.LoginScreen
 import com.example.linkup.feature.auth.register.RegisterScreen
 import com.example.linkup.feature.auth.session.SessionState
@@ -51,6 +53,7 @@ import com.example.linkup.feature.auth.session.SessionViewModel
 import com.example.linkup.feature.auth.splash.SplashScreen
 import com.example.linkup.feature.chat.ChatDetailRoute
 import com.example.linkup.feature.chat.ChatListRoute
+import com.example.linkup.feature.chat.ShareToChatSheet
 import com.example.linkup.feature.dating.DatingDiscoverScreen
 import com.example.linkup.feature.dating.DatingMatch
 import com.example.linkup.feature.dating.DatingMatchScreen
@@ -111,6 +114,7 @@ fun LinkUpApp() {
     val friendsState by friendsViewModel.uiState.collectAsState()
     val searchViewModel: SearchViewModel = hiltViewModel()
     val userListViewModel: UserListViewModel = hiltViewModel()
+    val aiViewModel: AiViewModel = hiltViewModel()
     val sessionViewModel: SessionViewModel = hiltViewModel()
     val sessionState by sessionViewModel.state.collectAsState()
     // Which user the current destination is about, restored correctly by back().
@@ -122,6 +126,9 @@ fun LinkUpApp() {
     var datingMatch by remember { mutableStateOf<DatingMatch?>(null) }
     var selectedDatingCandidate by remember { mutableStateOf<com.example.linkup.feature.dating.DatingCandidate?>(null) }
     var selectedConversation by remember { mutableStateOf<Conversation?>(null) }
+    var pendingShare by remember { mutableStateOf<SharedContent?>(null) }
+    var selectedAiConversationId by remember { mutableStateOf<String?>(null) }
+    var aiPostToAnalyzeId by remember { mutableStateOf<String?>(null) }
     var primaryNavigationVisible by remember { mutableStateOf(true) }
 
     var navDirection by remember { mutableStateOf(navigator.direction) }
@@ -258,12 +265,25 @@ fun LinkUpApp() {
                     onProfile = { reset(AppRoute.PROFILE) },
                     onSearch = { goTo(AppRoute.SEARCH) },
                     onNotifications = { goTo(AppRoute.NOTIFICATIONS) },
-                    onAi = { goTo(AppRoute.AI_CHAT) },
-                    onSignIn = { sessionViewModel.logout(); reset(AppRoute.LOGIN) },
+                    onAi = { selectedAiConversationId = null; aiPostToAnalyzeId = null; goTo(AppRoute.AI_CHAT) },
+                    onSignIn = { sessionViewModel.logout(); aiViewModel.reset(); reset(AppRoute.LOGIN) },
                     unreadNotifications = notificationsState.unreadCount,
                     onFriends = { goTo(AppRoute.FRIENDS) },
                     pendingFriendRequests = friendsState.requestCount,
                     onOpenAuthor = { id -> goTo(AppRoute.PROFILE, id) },
+                    onSharePost = { post ->
+                        pendingShare = SharedContent(
+                            id = post.id,
+                            type = SharedContent.TYPE_POST,
+                            caption = post.content,
+                            previewUrl = post.media.firstOrNull()?.let { "media/${it.id}" },
+                        )
+                    },
+                    onAnalyzePost = { post ->
+                        selectedAiConversationId = null
+                        aiPostToAnalyzeId = post.id
+                        goTo(AppRoute.AI_CHAT)
+                    },
                     onNavigationVisibilityChanged = { primaryNavigationVisible = it },
                 )
                 AppRoute.CREATE_POST -> CreatePostScreen(authSession?.user, postRepository, ::back) { reset(AppRoute.FEED) }
@@ -274,14 +294,35 @@ fun LinkUpApp() {
                     repository = postRepository,
                     onBack = ::back,
                     onDeleted = { reset(AppRoute.FEED) },
-                    onOpenAuthor = { id -> goTo(AppRoute.PROFILE, id) }
+                    onOpenAuthor = { id -> goTo(AppRoute.PROFILE, id) },
+                    onSharePost = { post ->
+                        pendingShare = SharedContent(
+                            id = post.id,
+                            type = SharedContent.TYPE_POST,
+                            caption = post.content,
+                            previewUrl = post.media.firstOrNull()?.let { "media/${it.id}" },
+                        )
+                    },
+                    onAnalyzePost = { post ->
+                        selectedAiConversationId = null
+                        aiPostToAnalyzeId = post.id
+                        goTo(AppRoute.AI_CHAT)
+                    },
                 )
                 AppRoute.REELS -> ReelsScreen(
                     repository = reelsRepository,
                     me = authSession?.user,
                     onUpload = { goTo(AppRoute.UPLOAD_REEL) },
-                    onSignIn = { sessionViewModel.logout(); reset(AppRoute.LOGIN) },
+                    onSignIn = { sessionViewModel.logout(); aiViewModel.reset(); reset(AppRoute.LOGIN) },
                     initialReelId = selectedReelId,
+                    onShareReel = { reel ->
+                        pendingShare = SharedContent(
+                            id = reel.id,
+                            type = SharedContent.TYPE_REEL,
+                            caption = reel.caption,
+                            previewUrl = reel.thumbnailUrl?.let { "reels/${reel.id}/thumbnail" },
+                        )
+                    },
                     onNavigationVisibilityChanged = { primaryNavigationVisible = it },
                 )
                 AppRoute.UPLOAD_REEL -> UploadReelScreen(authSession?.user, reelsRepository, ::back) {
@@ -335,7 +376,7 @@ fun LinkUpApp() {
                         selectedConversation = conv
                         goTo(AppRoute.CHAT_DETAIL)
                     },
-                    onOpenProfile = { id -> goTo(AppRoute.PROFILE, id) }
+                    onOpenProfile = { id -> goTo(AppRoute.PROFILE, id) },
                 )
                 AppRoute.CHAT_DETAIL -> ChatDetailRoute(
                     conversationId = selectedConversation?.id ?: "c1",
@@ -345,10 +386,38 @@ fun LinkUpApp() {
                     peerUserId = selectedConversation
                         ?.takeIf { it.type != "GROUP" }
                         ?.user?.id,
-                    onOpenProfile = { id -> goTo(AppRoute.PROFILE, id) }
+                    onOpenProfile = { id -> goTo(AppRoute.PROFILE, id) },
+                    onOpenSharedContent = { type, id ->
+                        if (type == SharedContent.TYPE_POST) {
+                            selectedPost = null
+                            selectedPostId = id
+                            goTo(AppRoute.POST_DETAIL)
+                        } else {
+                            selectedReelId = id
+                            goTo(AppRoute.REELS)
+                        }
+                    },
                 )
-                AppRoute.AI_CHAT -> AiChatScreen(::back) { goTo(AppRoute.AI_CONVERSATIONS) }
-                AppRoute.AI_CONVERSATIONS -> AiConversationsScreen(::back) { replace(AppRoute.AI_CHAT) }
+                AppRoute.AI_CHAT -> AiChatScreen(
+                    onBack = ::back,
+                    onHistory = { goTo(AppRoute.AI_CONVERSATIONS) },
+                    conversationId = selectedAiConversationId,
+                    analyzePostId = aiPostToAnalyzeId,
+                    onConversationReady = { id ->
+                        selectedAiConversationId = id
+                        aiPostToAnalyzeId = null
+                    },
+                    viewModel = aiViewModel,
+                )
+                AppRoute.AI_CONVERSATIONS -> AiConversationsScreen(
+                    onBack = ::back,
+                    onOpen = { id ->
+                        selectedAiConversationId = id
+                        aiPostToAnalyzeId = null
+                        back()
+                    },
+                    viewModel = aiViewModel,
+                )
                 AppRoute.DATING_PROFILE -> datingUiState.profile?.let { profile ->
                     DatingProfileScreen(
                         profile = profile,
@@ -394,12 +463,25 @@ fun LinkUpApp() {
                         searchViewModel.reset()
                         userListViewModel.reset()
                         friendsViewModel.reset()
+                        aiViewModel.reset()
+                        selectedAiConversationId = null
+                        aiPostToAnalyzeId = null
                         reset(AppRoute.LOGIN)
                     },
                     onDatingProfile = { goTo(AppRoute.DATING_PROFILE) }
                 )
             }
         }
+    }
+    pendingShare?.let { content ->
+        ShareToChatSheet(
+            content = content,
+            onDismiss = { pendingShare = null },
+            onShared = { count ->
+                pendingShare = null
+                android.widget.Toast.makeText(context, "Đã gửi đến $count cuộc trò chuyện", android.widget.Toast.LENGTH_SHORT).show()
+            },
+        )
     }
 }
 }

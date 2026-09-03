@@ -1,5 +1,9 @@
 package com.linkup
 
+import com.linkup.ai.AiRepository
+import com.linkup.ai.AiAnalysisService
+import com.linkup.ai.GeminiClient
+import com.linkup.ai.aiRoutes
 import com.linkup.database.DatabaseFactory
 import com.linkup.config.EnvConfig
 import com.linkup.repository.ChatRepository
@@ -82,6 +86,10 @@ fun Application.module() {
     val reelRepository = ReelRepository()
     val postRepository = PostRepository()
     val searchRepository = SearchRepository()
+    val aiRepository = AiRepository()
+    val geminiClient = GeminiClient()
+    val aiAnalysisService = AiAnalysisService(aiRepository, geminiClient)
+    monitor.subscribe(ApplicationStopped) { aiAnalysisService.close() }
 
     routing {
         get("/") {
@@ -102,5 +110,6 @@ fun Application.module() {
         reelRoutes(reelRepository)
         postRoutes(postRepository)
         searchRoutes(searchRepository)
+        aiRoutes(aiRepository, postRepository, geminiClient, aiAnalysisService)
     }
 }

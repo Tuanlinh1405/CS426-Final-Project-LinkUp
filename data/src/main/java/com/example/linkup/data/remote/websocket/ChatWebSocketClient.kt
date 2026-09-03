@@ -117,6 +117,7 @@ class ChatWebSocketClient @Inject constructor(
         type: String = "TEXT",
         tempId: String? = null,
         mediaUrl: String? = null,
+        sharedContentId: String? = null,
     ): Boolean {
         val frame = WebSocketFrameDto(
             event = "SEND_MESSAGE",
@@ -126,6 +127,7 @@ class ChatWebSocketClient @Inject constructor(
                 type = type,
                 textContent = textContent,
                 mediaUrl = mediaUrl,
+                sharedContentId = sharedContentId,
             ),
             tempId = tempId
         )

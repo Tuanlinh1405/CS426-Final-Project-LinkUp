@@ -72,6 +72,7 @@ object DatabaseFactory {
                 DatingMatchesTable,
                 AIConversationsTable,
                 AIMessagesTable,
+                AIAnalysisCacheTable,
                 NotificationsTable
             )
 
@@ -96,7 +97,8 @@ object DatabaseFactory {
             "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS website VARCHAR(255) NULL",
             "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS name VARCHAR(100) NULL",
             "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS type VARCHAR(20) DEFAULT 'DIRECT'",
-            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_url TEXT NULL"
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_url TEXT NULL",
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS shared_content_id UUID NULL"
         ).forEach { exec(it) }
     }
 

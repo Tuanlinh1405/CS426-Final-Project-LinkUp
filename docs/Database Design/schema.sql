@@ -200,6 +200,14 @@ CREATE TABLE IF NOT EXISTS ai_messages (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Cached model output. The fingerprint includes the post content/media, model and
+-- prompt version, so changing any of them automatically causes a cache miss.
+CREATE TABLE IF NOT EXISTS ai_analysis_cache (
+    fingerprint VARCHAR(64) PRIMARY KEY,
+    answer TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 9. Notifications
 CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -1,6 +1,5 @@
 package com.example.linkup.feature.reels
 
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -40,6 +39,7 @@ fun ReelsScreen(
     onUpload: () -> Unit,
     onSignIn: () -> Unit,
     initialReelId: String? = null,
+    onShareReel: (Reel) -> Unit = {},
     onNavigationVisibilityChanged: (Boolean) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
@@ -161,11 +161,7 @@ fun ReelsScreen(
                         toggleLike(reel)
                     }
                     ReelAction("💬", reel.commentCount.toString()) { commentReel = reel }
-                    ReelAction("↗", "Share") {
-                        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"; putExtra(Intent.EXTRA_TEXT, "${reel.caption}\n${ApiClient.mediaUrl("reels/${reel.id}/video")}")
-                        }, "Share reel"))
-                    }
+                    ReelAction("↗", "Share") { onShareReel(reel) }
                     if (reel.author.id == me?.id) ReelAction("×", "Delete", enabled = busy == null) { deleteReel = reel }
                     else ReelAction("⊘", "Not interested", enabled = busy == null) { action(reel.id) { repository.hide(reel.id); items.removeAll { it.id == reel.id } } }
                 }

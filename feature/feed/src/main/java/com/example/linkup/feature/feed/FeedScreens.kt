@@ -1,6 +1,5 @@
 package com.example.linkup.feature.feed
 
-import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -64,6 +63,8 @@ fun FeedScreen(
     onFriends: (() -> Unit)? = null,
     pendingFriendRequests: Int = 0,
     onOpenAuthor: (String) -> Unit = {},
+    onSharePost: (FeedPost) -> Unit = {},
+    onAnalyzePost: (FeedPost) -> Unit = {},
     onNavigationVisibilityChanged: (Boolean) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
@@ -93,13 +94,6 @@ fun FeedScreen(
             catch (e: Exception) { replace(post); error = e.message ?: "Cannot update like." }
             finally { likingPosts.remove(post.id) }
         }
-    }
-    fun share(post: FeedPost) {
-        val media = post.media.firstOrNull()?.let { ApiClient.mediaUrl("media/${it.id}") }
-        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, listOfNotNull(post.content.takeIf(String::isNotBlank), media).joinToString("\n"))
-        }, "Share post"))
     }
     LaunchedEffect(me?.id, refresh) {
         if (me == null) { posts.clear(); loading = false; return@LaunchedEffect }
@@ -185,7 +179,8 @@ fun FeedScreen(
                     post,
                     onOpen = { onOpenPost(post) },
                     onLike = { togglePostLike(post) },
-                    onShare = { share(post) },
+                    onShare = { onSharePost(post) },
+                    onAnalyze = { onAnalyzePost(post) },
                     likeEnabled = likingPosts[post.id] != true,
                     onOpenAuthor = { onOpenAuthor(post.author.id) },
                 )
@@ -202,6 +197,7 @@ fun PostCard(
     onOpen: () -> Unit,
     onLike: () -> Unit,
     onShare: () -> Unit,
+    onAnalyze: (() -> Unit)? = null,
     likeEnabled: Boolean = true,
     showAllMedia: Boolean = false,
     onDelete: (() -> Unit)? = null,
@@ -240,6 +236,7 @@ fun PostCard(
             PostAction(if (post.liked) "♥ Liked" else "♡ Like", Modifier.weight(1f), post.liked, likeEnabled, onLike)
             PostAction("□ Comment", Modifier.weight(1f), onClick = onOpen)
             PostAction("↗ Share", Modifier.weight(1f), onClick = onShare)
+            onAnalyze?.let { PostAction("✨ AI", Modifier.weight(1f), onClick = it) }
         }
     }
 }
@@ -335,9 +332,10 @@ fun PostDetailScreen(
     onBack: () -> Unit,
     onDeleted: () -> Unit,
     onOpenAuthor: (String) -> Unit = {},
+    onSharePost: (FeedPost) -> Unit = {},
+    onAnalyzePost: (FeedPost) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     val cachedCommentPage = remember(postId) { postId?.let(repository::cachedComments) }
     var post by remember(postId) { mutableStateOf(initialPost?.takeIf { it.id == postId }) }
     val comments = remember(postId) { mutableStateListOf<FeedComment>().apply { addAll(cachedCommentPage?.items.orEmpty()) } }
@@ -453,8 +451,8 @@ fun PostDetailScreen(
         else LazyColumn(state = list, modifier = Modifier.weight(1f)) {
             post?.let { current -> item {
                 PostCard(current, {}, onLike = { togglePostLike(current) }, onShare = {
-                    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, current.content) }, "Share post"))
-                }, likeEnabled = !likingPost, showAllMedia = true, onDelete = if (current.author.id == me?.id) {{ confirmDeletePost = true }} else null,
+                    onSharePost(current)
+                }, onAnalyze = { onAnalyzePost(current) }, likeEnabled = !likingPost, showAllMedia = true, onDelete = if (current.author.id == me?.id) {{ confirmDeletePost = true }} else null,
                     onOpenAuthor = { onOpenAuthor(current.author.id) })
             } }
             item {

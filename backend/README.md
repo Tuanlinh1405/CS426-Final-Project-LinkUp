@@ -29,6 +29,13 @@ Android emulator. Configuration is read from `.env` (repo root or `backend/`).
 
 Start the backend **before** launching the app — the app cannot start it.
 
+### LinkUp AI configuration
+
+Gemini credentials are server-only. Copy `backend/.env.ai.example` to
+`backend/.env.ai`, then set `GEMINI_API_KEY`. `GEMINI_MODEL` defaults to
+`gemini-3.6-flash`. The real `.env.ai` file is ignored by Git; never put this key in
+the Android app or commit it to the repository.
+
 ## Tests
 
 ```bash
@@ -49,6 +56,23 @@ The smoke script registers throwaway users, so point it at a dev database.
 | --- | --- | --- |
 | `POST` | `/auth/register` | `{email, username, password, fullName?}` → `{user, token}` |
 | `POST` | `/auth/login` | `{emailOrUsername, password}` → `{user, token}` |
+
+### LinkUp AI
+
+All AI routes require `Authorization: Bearer <jwt>`. Post analysis returns `202`
+immediately on a cache miss, then downloads at most two photos concurrently, resizes
+them to at most 1600 px, and sends at most 5 MB to Gemini with low thinking effort.
+The Android client polls the owned conversation while the job runs. Completed output
+is persisted in `ai_conversations` / `ai_messages` and reused from
+`ai_analysis_cache` while the post, model and prompt version are unchanged.
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| `POST` | `/ai/posts/{postId}/analyze` | Create a conversation; `202` means analysis continues in the background |
+| `GET` | `/ai/conversations` | List the caller's AI history |
+| `POST` | `/ai/conversations` | Create a normal AI conversation |
+| `GET` | `/ai/conversations/{id}/messages` | Load one owned conversation |
+| `POST` | `/ai/conversations/{id}/messages` | Ask a follow-up question |
 
 ### Profile
 

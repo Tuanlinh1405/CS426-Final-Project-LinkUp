@@ -83,6 +83,7 @@ class ChatRepository {
                     type = rs.getString("lm_type"),
                     textContent = rs.getString("lm_text"),
                     mediaUrl = rs.getString("lm_media_url"),
+                    sharedContentId = rs.getString("lm_shared_content_id"),
                     status = rs.getString("lm_status") ?: "SENT",
                     createdAt = rs.isoTimestamp("lm_created_at")
                 ),
@@ -222,6 +223,7 @@ class ChatRepository {
             val type = row[MessagesTable.type]
             val textContent = row[MessagesTable.textContent]
             val mediaUrl = row[MessagesTable.mediaUrl]
+            val sharedContentId = row[MessagesTable.sharedContentId]?.toString()
             val createdAt = row[MessagesTable.createdAt].toString()
 
             val status = calculateMessageStatusBulk(senderId, currentUserId, receiptsByMessage[msgId] ?: emptyList())
@@ -234,6 +236,7 @@ class ChatRepository {
                 type = type,
                 textContent = textContent,
                 mediaUrl = mediaUrl,
+                sharedContentId = sharedContentId,
                 status = status,
                 createdAt = createdAt
             )
@@ -245,7 +248,8 @@ class ChatRepository {
         senderId: UUID,
         textContent: String?,
         type: String = "TEXT",
-        mediaUrl: String? = null
+        mediaUrl: String? = null,
+        sharedContentId: UUID? = null
     ): MessageResponse = dbQuery {
         val now = Clock.System.now()
         val newMsgId = MessagesTable.insertAndGetId {
@@ -254,6 +258,7 @@ class ChatRepository {
             it[this.type] = type
             it[this.textContent] = textContent
             it[this.mediaUrl] = mediaUrl
+            it[this.sharedContentId] = sharedContentId
             it[createdAt] = now
         }.value
 
@@ -290,6 +295,7 @@ class ChatRepository {
             type = type,
             textContent = textContent,
             mediaUrl = mediaUrl,
+            sharedContentId = sharedContentId?.toString(),
             status = "SENT",
             createdAt = now.toString()
         )
@@ -436,6 +442,7 @@ class ChatRepository {
                     type = row[MessagesTable.type],
                     textContent = row[MessagesTable.textContent],
                     mediaUrl = row[MessagesTable.mediaUrl],
+                    sharedContentId = row[MessagesTable.sharedContentId]?.toString(),
                     status = "DELIVERED",
                     createdAt = row[MessagesTable.createdAt].toString()
                 )
@@ -472,6 +479,7 @@ class ChatRepository {
         val type = lastMsgRow[MessagesTable.type]
         val textContent = lastMsgRow[MessagesTable.textContent]
         val mediaUrl = lastMsgRow[MessagesTable.mediaUrl]
+        val sharedContentId = lastMsgRow[MessagesTable.sharedContentId]?.toString()
         val createdAt = lastMsgRow[MessagesTable.createdAt].toString()
 
         val status = calculateMessageStatusInternal(msgId, senderId, currentUserId)
@@ -484,6 +492,7 @@ class ChatRepository {
             type = type,
             textContent = textContent,
             mediaUrl = mediaUrl,
+            sharedContentId = sharedContentId,
             status = status,
             createdAt = createdAt
         )
@@ -557,6 +566,7 @@ private val CONVERSATION_LIST_SQL: String = """
            u.id AS p_id, u.username AS p_username, u.full_name AS p_full_name, pr.avatar_url AS p_avatar,
            lm.id AS lm_id, lm.sender_id AS lm_sender_id, lm.sender_name AS lm_sender_name,
            lm.type AS lm_type, lm.text_content AS lm_text, lm.media_url AS lm_media_url,
+           lm.shared_content_id AS lm_shared_content_id,
            lm.created_at AS lm_created_at,
            lm.self_status AS lm_status,
            (SELECT count(*) FROM message_receipts mr2
@@ -568,7 +578,7 @@ private val CONVERSATION_LIST_SQL: String = """
       JOIN users u ON u.id = cm.user_id
       LEFT JOIN profiles pr ON pr.user_id = u.id
       LEFT JOIN LATERAL (
-          SELECT m.id, m.sender_id, m.type, m.text_content, m.media_url, m.created_at,
+          SELECT m.id, m.sender_id, m.type, m.text_content, m.media_url, m.shared_content_id, m.created_at,
                  COALESCE(su.full_name, su.username) AS sender_name,
                  CASE WHEN m.sender_id = ? THEN (
                              SELECT CASE

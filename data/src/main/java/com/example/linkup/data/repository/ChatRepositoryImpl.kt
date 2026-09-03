@@ -8,6 +8,7 @@ import com.example.linkup.data.mapper.toDomain
 import com.example.linkup.data.model.Conversation
 import com.example.linkup.data.model.Message
 import com.example.linkup.data.model.MessageStatus
+import com.example.linkup.data.model.SharedContent
 import com.example.linkup.data.model.PickedImage
 import com.example.linkup.data.remote.api.ChatApiService
 import com.example.linkup.data.remote.dto.CreateDirectConversationRequest
@@ -410,6 +411,56 @@ class ChatRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "REST fallback image send failed", e)
             Result.success(optimisticMsg.copy(mediaUrl = mediaUrl))
+        }
+    }
+
+    override suspend fun sendSharedContent(
+        conversationId: String,
+        content: SharedContent,
+    ): Result<Message> {
+        val tempId = UUID.randomUUID().toString()
+        val optimistic = Message(
+            id = tempId,
+            conversationId = conversationId,
+            senderId = currentUserId.orEmpty(),
+            type = content.type,
+            textContent = content.caption.take(500).takeIf { it.isNotBlank() },
+            mediaUrl = content.previewUrl,
+            sharedContentId = content.id,
+            status = MessageStatus.SENT,
+            createdAt = getCurrentIsoTimestamp(),
+            fromMe = true,
+        )
+        val flow = messagesMap.getOrPut(conversationId) { MutableStateFlow(emptyList()) }
+        flow.value = flow.value + optimistic
+        updateConversationLastMessage(conversationId, optimistic)
+
+        return try {
+            // Shares use REST as the authoritative path. A successful response means the
+            // card is committed, while handleSendMessage still broadcasts it in realtime.
+            val response = chatApiService.sendMessage(
+                conversationId,
+                SendMessageRequest(
+                    textContent = optimistic.textContent,
+                    type = content.type,
+                    mediaUrl = content.previewUrl,
+                    sharedContentId = content.id,
+                    tempId = tempId,
+                )
+            )
+            if (response.isSuccessful && response.body() != null) {
+                val saved = response.body()!!.toDomain(currentUserId)
+                flow.value = flow.value.map { if (it.id == tempId) saved else it }
+                updateConversationLastMessage(conversationId, saved)
+                Result.success(saved)
+            } else {
+                flow.value = flow.value.filterNot { it.id == tempId }
+                Result.failure(Exception("Không gửi được nội dung (${response.code()})"))
+            }
+        } catch (error: Exception) {
+            flow.value = flow.value.filterNot { it.id == tempId }
+            Log.e(TAG, "Shared content send failed", error)
+            Result.failure(error)
         }
     }
 

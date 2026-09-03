@@ -157,4 +157,33 @@ class ChatMapperTest {
 
         assertEquals("Bob Jones, Carol White", group.toDomain(currentUserId = "u1").user.name)
     }
+
+    @Test
+    fun `shared reel keeps canonical id and has a useful conversation preview`() {
+        val dto = MessageDto(
+            id = "m-shared",
+            conversationId = "c1",
+            senderId = "u2",
+            type = "REEL",
+            textContent = "Highlight trận đấu",
+            mediaUrl = "reels/r1/thumbnail",
+            sharedContentId = "r1",
+            createdAt = ChatTime.nowIso(),
+        )
+
+        val message = dto.toDomain(currentUserId = "u1")
+        assertEquals("r1", message.sharedContentId)
+        assertEquals("reels/r1/thumbnail", message.mediaUrl)
+
+        val conversation = ConversationDto(
+            id = "c1",
+            participants = listOf(
+                ParticipantDto("u1", "alice", "Alice"),
+                ParticipantDto("u2", "bob", "Bob"),
+            ),
+            lastMessage = dto,
+            updatedAt = dto.createdAt,
+        ).toDomain(currentUserId = "u1")
+        assertEquals("Đã chia sẻ một Reel", conversation.preview)
+    }
 }

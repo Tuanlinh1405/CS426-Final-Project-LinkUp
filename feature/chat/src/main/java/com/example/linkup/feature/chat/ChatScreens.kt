@@ -77,6 +77,7 @@ import com.example.linkup.data.model.Conversation
 import com.example.linkup.data.model.Message
 import com.example.linkup.data.model.MessageStatus
 import com.example.linkup.data.model.UserSummary
+import com.example.linkup.data.network.ApiClient
 import com.example.linkup.data.util.ChatTime
 
 @Composable
@@ -127,6 +128,7 @@ fun ChatDetailRoute(
     onBack: () -> Unit,
     peerUserId: String? = null,
     onOpenProfile: ((String) -> Unit)? = null,
+    onOpenSharedContent: ((String, String) -> Unit)? = null,
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(conversationId) {
@@ -163,6 +165,7 @@ fun ChatDetailRoute(
         onTyping = { isTyping -> viewModel.onDraftChanged(isTyping) },
         onSendImage = { uri -> viewModel.sendImage(uri) },
         onDeleteMessage = { msgId -> viewModel.deleteMessage(msgId) },
+        onOpenSharedContent = onOpenSharedContent,
         onLoadOlder = { viewModel.loadOlder() },
         onOpenProfile = if (peerUserId != null && onOpenProfile != null) {
             { onOpenProfile(peerUserId) }
@@ -440,6 +443,7 @@ fun ChatDetailScreen(
     onTyping: ((Boolean) -> Unit)? = null,
     onSendImage: ((Uri) -> Unit)? = null,
     onDeleteMessage: ((String) -> Unit)? = null,
+    onOpenSharedContent: ((String, String) -> Unit)? = null,
     onLoadOlder: (() -> Unit)? = null,
     /** Opens the person you are talking to, from the header title or avatar. */
     onOpenProfile: (() -> Unit)? = null,
@@ -551,6 +555,7 @@ fun ChatDetailScreen(
                     onLongPress = if (message.fromMe && onDeleteMessage != null) {
                         { pendingDeleteId = message.id }
                     } else null,
+                    onOpenSharedContent = onOpenSharedContent,
                     onOpenProfile = onOpenProfile
                 )
             }
@@ -699,6 +704,7 @@ private fun DomainMessageBubble(
     senderAvatarUrl: String? = null,
     senderInitials: String = "C",
     onLongPress: (() -> Unit)? = null,
+    onOpenSharedContent: ((String, String) -> Unit)? = null,
     onOpenProfile: (() -> Unit)? = null,
 ) {
     Row(
@@ -720,7 +726,15 @@ private fun DomainMessageBubble(
         }
         Column(
             Modifier
-                .combinedClickable(onClick = {}, onLongClick = onLongPress)
+                .combinedClickable(
+                    onClick = {
+                        val targetId = message.sharedContentId
+                        if (targetId != null && message.type in setOf("POST", "REEL")) {
+                            onOpenSharedContent?.invoke(message.type, targetId)
+                        }
+                    },
+                    onLongClick = onLongPress,
+                )
                 .padding(horizontal = 7.dp)
                 .widthIn(max = 280.dp)
                 .clip(
@@ -742,7 +756,9 @@ private fun DomainMessageBubble(
                     fontWeight = FontWeight.Bold
                 )
             }
-            if (message.type == "IMAGE" && !message.mediaUrl.isNullOrEmpty()) {
+            if (message.type in setOf("POST", "REEL") && message.sharedContentId != null) {
+                SharedMessageCard(message)
+            } else if (message.type == "IMAGE" && !message.mediaUrl.isNullOrEmpty()) {
                 AsyncImage(
                     model = message.mediaUrl,
                     contentDescription = "Ảnh",
@@ -778,6 +794,38 @@ private fun DomainMessageBubble(
             }
         }
     }
+}
+
+@Composable
+private fun SharedMessageCard(message: Message) {
+    val foreground = if (message.fromMe) Color.White else Color(0xFF1E1B2E)
+    val label = if (message.type == "REEL") "Reel" else "Bài viết"
+    val mediaUrl = message.mediaUrl
+    if (!mediaUrl.isNullOrBlank()) {
+        Box {
+            AsyncImage(
+                model = ApiClient.mediaUrl(mediaUrl),
+                contentDescription = label,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(10.dp)),
+            )
+            if (message.type == "REEL") {
+                Box(
+                    Modifier.align(Alignment.Center).size(44.dp).clip(CircleShape).background(Color.Black.copy(alpha = .55f)),
+                    contentAlignment = Alignment.Center,
+                ) { Text("▶", color = Color.White, fontSize = 20.sp) }
+            }
+        }
+        Spacer(Modifier.height(7.dp))
+    }
+    Text(label, color = foreground, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+    Text(
+        message.textContent?.takeIf { it.isNotBlank() } ?: "Nhấn để xem nội dung",
+        color = foreground,
+        maxLines = 3,
+        overflow = TextOverflow.Ellipsis,
+    )
+    Text("Nhấn để mở", color = foreground.copy(alpha = .7f), fontSize = 10.sp)
 }
 
 /**

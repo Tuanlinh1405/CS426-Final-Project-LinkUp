@@ -21,6 +21,7 @@ captures/
 *.env
 !.env.example
 !.env.storage.example
+!.env.ai.example
 *.jks
 *.keystore
 keystore.properties

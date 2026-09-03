@@ -10,6 +10,7 @@ data class Message(
     val type: String = "TEXT",
     val textContent: String? = null,
     val mediaUrl: String? = null,
+    val sharedContentId: String? = null,
     val status: MessageStatus = MessageStatus.SENT,
     val createdAt: String = "",
     val fromMe: Boolean = false,
@@ -22,5 +23,22 @@ data class Message(
             time = ChatTime.clock(createdAt),
             status = status.name
         )
+    }
+}
+
+/** Immutable snapshot used when a post or Reel is sent through chat. */
+data class SharedContent(
+    val id: String,
+    val type: String,
+    val caption: String,
+    val previewUrl: String? = null,
+) {
+    init {
+        require(type == TYPE_POST || type == TYPE_REEL)
+    }
+
+    companion object {
+        const val TYPE_POST = "POST"
+        const val TYPE_REEL = "REEL"
     }
 }

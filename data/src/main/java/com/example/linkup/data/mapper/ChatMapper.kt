@@ -28,6 +28,7 @@ fun MessageDto.toDomain(currentUserId: String? = null): Message {
         type = type,
         textContent = textContent,
         mediaUrl = mediaUrl,
+        sharedContentId = sharedContentId,
         status = MessageStatus.fromString(status),
         createdAt = createdAt,
         fromMe = currentUserId != null && senderId == currentUserId
@@ -101,6 +102,8 @@ fun buildPreview(
     if (lastMessage == null) return "No messages yet"
     val body = when {
         lastMessage.type == "IMAGE" -> lastMessage.textContent?.takeIf { it.isNotBlank() } ?: "📷 Ảnh"
+        lastMessage.type == "POST" -> "Đã chia sẻ một bài viết"
+        lastMessage.type == "REEL" -> "Đã chia sẻ một Reel"
         else -> lastMessage.textContent ?: "Media message"
     }
     if (!isGroup) return body

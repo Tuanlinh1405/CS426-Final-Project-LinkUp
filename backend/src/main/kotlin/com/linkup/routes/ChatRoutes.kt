@@ -181,13 +181,27 @@ fun Route.chatRoutes(
                     return@post
                 }
 
+                val sharedContentId = request.sharedContentId?.let {
+                    runCatching { UUID.fromString(it) }.getOrNull() ?: run {
+                        call.respond(HttpStatusCode.BadRequest, "Invalid shared content ID")
+                        return@post
+                    }
+                }
+                if (request.type !in setOf("TEXT", "IMAGE", "POST", "REEL") ||
+                    (request.type in setOf("POST", "REEL") && sharedContentId == null)
+                ) {
+                    call.respond(HttpStatusCode.BadRequest, "Invalid message type or shared content")
+                    return@post
+                }
+
                 val message = wsManager.handleSendMessage(
                     senderId = userId,
                     conversationId = convId,
                     textContent = request.textContent,
                     type = request.type,
                     tempId = request.tempId,
-                    mediaUrl = request.mediaUrl
+                    mediaUrl = request.mediaUrl,
+                    sharedContentId = sharedContentId
                 )
 
                 if (message == null) {
@@ -328,18 +342,24 @@ fun Route.chatRoutes(
                             val textContent = wsFrame.message?.textContent
                             val msgType = wsFrame.message?.type ?: "TEXT"
                             val mediaUrl = wsFrame.message?.mediaUrl
+                            val sharedContentId = wsFrame.message?.sharedContentId?.let {
+                                runCatching { UUID.fromString(it) }.getOrNull()
+                            }
                             val tempId = wsFrame.tempId ?: wsFrame.message?.id
 
                             if (convIdStr != null) {
                                 val convId = try { UUID.fromString(convIdStr) } catch (e: Exception) { null }
-                                if (convId != null) {
+                                if (convId != null && msgType in setOf("TEXT", "IMAGE", "POST", "REEL") &&
+                                    (msgType !in setOf("POST", "REEL") || sharedContentId != null)
+                                ) {
                                     wsManager.handleSendMessage(
                                         senderId = userId,
                                         conversationId = convId,
                                         textContent = textContent,
                                         type = msgType,
                                         tempId = tempId,
-                                        mediaUrl = mediaUrl
+                                        mediaUrl = mediaUrl,
+                                        sharedContentId = sharedContentId
                                     ) ?: send(
                                         Frame.Text(
                                             json.encodeToString(

@@ -34,7 +34,7 @@ fun main(args: Array<String>) {
                     PostsTable, PostMediaTable, CommentsTable, PostReactionsTable, ReelsTable,
                     ConversationsTable, ConversationMembersTable, MessagesTable, DatingProfilesTable,
                     DatingPhotosTable, DatingSwipesTable, DatingMatchesTable, AIConversationsTable,
-                    AIMessagesTable, NotificationsTable,
+                    AIMessagesTable, AIAnalysisCacheTable, NotificationsTable,
                 )
                 val featureColumns = if ("--reels" in args) mapOf(
                     "reel_assets" to setOf("reel_id", "video_key", "thumbnail_key", "storage_backend", "file_size", "duration_ms"),

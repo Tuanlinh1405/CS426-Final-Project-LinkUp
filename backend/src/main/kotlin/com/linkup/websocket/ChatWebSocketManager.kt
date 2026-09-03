@@ -132,7 +132,8 @@ class ChatWebSocketManager(private val chatRepository: ChatRepository) {
         textContent: String?,
         type: String = "TEXT",
         tempId: String? = null,
-        mediaUrl: String? = null
+        mediaUrl: String? = null,
+        sharedContentId: UUID? = null
     ): MessageResponse? {
         // Sender must be a member; otherwise any user could write into any conversation.
         if (!chatRepository.isConversationMember(conversationId, senderId)) {
@@ -146,7 +147,8 @@ class ChatWebSocketManager(private val chatRepository: ChatRepository) {
             senderId = senderId,
             textContent = textContent,
             type = type,
-            mediaUrl = mediaUrl
+            mediaUrl = mediaUrl,
+            sharedContentId = sharedContentId
         )
 
         val memberIds = chatRepository.getConversationMemberIds(conversationId)

@@ -3,6 +3,7 @@ package com.example.linkup.data.repository
 import com.example.linkup.data.model.Conversation
 import com.example.linkup.data.model.Message
 import com.example.linkup.data.model.PickedImage
+import com.example.linkup.data.model.SharedContent
 import com.example.linkup.data.remote.websocket.ChatWebSocketClient
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +32,9 @@ interface ChatRepository {
     suspend fun createDirectConversation(targetUserId: String): Result<Conversation>
     suspend fun createGroupConversation(name: String, memberUserIds: List<String>): Result<Conversation>
     suspend fun sendMessage(conversationId: String, text: String): Result<Message>
+
+    /** Sends a tappable POST/REEL card using the canonical entity id. */
+    suspend fun sendSharedContent(conversationId: String, content: SharedContent): Result<Message>
 
     /** Uploads [image], then sends it as an IMAGE message. Shows optimistically while uploading. */
     suspend fun sendImageMessage(conversationId: String, image: PickedImage): Result<Message>
