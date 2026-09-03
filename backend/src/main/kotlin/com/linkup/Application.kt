@@ -8,6 +8,7 @@ import com.linkup.repository.NotificationRepository
 import com.linkup.repository.ProfileRepository
 import com.linkup.repository.UserRepository
 import com.linkup.routes.authRoutes
+import com.linkup.routes.datingRoutes
 import com.linkup.routes.chatRoutes
 import com.linkup.routes.friendRoutes
 import com.linkup.routes.notificationRoutes
@@ -71,6 +72,7 @@ fun Application.module() {
     DatabaseFactory.init()
 
     val userRepository = UserRepository()
+    val datingRepository = com.linkup.repository.DatingRepository()
     val chatRepository = ChatRepository()
     val profileRepository = ProfileRepository()
     val notificationRepository = NotificationRepository()
@@ -91,6 +93,7 @@ fun Application.module() {
         staticFiles("/media", File(EnvConfig.MEDIA_ROOT))
 
         authRoutes(userRepository)
+        datingRoutes(datingRepository)
         chatRoutes(chatRepository, wsManager, userRepository)
         profileRoutes(profileRepository, mediaStorage)
         notificationRoutes(notificationRepository)
