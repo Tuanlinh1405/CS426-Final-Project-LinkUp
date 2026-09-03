@@ -12,18 +12,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.theme.LinkDivider
+import com.example.linkup.core.designsystem.theme.LinkInk
 import com.example.linkup.core.designsystem.theme.LinkPink
 import com.example.linkup.core.designsystem.theme.LinkPurple
 import com.example.linkup.core.designsystem.theme.LinkPurpleSoft
@@ -44,7 +50,15 @@ fun ScreenHeader(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (onBack != null) {
-                    Text("‹", fontSize = 34.sp, modifier = Modifier.clickable(onClick = onBack).padding(end = 12.dp))
+                    Icon(
+                        imageVector = LinkUpIcons.ChevronLeft,
+                        contentDescription = "Back",
+                        tint = LinkInk,
+                        modifier = Modifier
+                            .size(26.dp)
+                            .clickable(onClick = onBack)
+                    )
+                    Spacer(Modifier.width(10.dp))
                 }
                 Text(
                     text = title,
@@ -85,24 +99,34 @@ fun LinkUpTopBar(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("LinkUp", color = LinkPurple, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, modifier = Modifier.weight(1f))
-            TopAction("⌕", onSearch)
+            TopAction(LinkUpIcons.Search, "Search", onSearch)
             if (onFriends != null) {
-                TopAction("☺", onFriends, badgeCount = pendingFriendRequests)
+                TopAction(LinkUpIcons.People, "Friends", onFriends, badgeCount = pendingFriendRequests)
             }
-            TopAction("♢", onNotifications, badgeCount = unreadNotifications)
-            TopAction("AI", onAi)
+            TopAction(LinkUpIcons.Bell, "Notifications", onNotifications, badgeCount = unreadNotifications)
+            TopAction(LinkUpIcons.Sparkle, "AI assistant", onAi)
         }
     }
 }
 
 @Composable
-private fun TopAction(text: String, onClick: () -> Unit, badgeCount: Int = 0) {
+private fun TopAction(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    badgeCount: Int = 0
+) {
     Box(contentAlignment = Alignment.TopEnd) {
         Box(
-            modifier = Modifier.size(34.dp).clip(CircleShape).background(LinkPurpleSoft).clickable(onClick = onClick),
+            modifier = Modifier.size(38.dp).clip(CircleShape).background(LinkPurpleSoft).clickable(onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
-            Text(text, color = LinkPurple, fontWeight = FontWeight.Bold)
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = LinkPurple,
+                modifier = Modifier.size(20.dp)
+            )
         }
         if (badgeCount > 0) {
             Box(

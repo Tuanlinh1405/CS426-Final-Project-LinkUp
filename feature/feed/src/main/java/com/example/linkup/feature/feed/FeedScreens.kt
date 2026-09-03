@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +42,7 @@ import androidx.compose.ui.platform.LocalDensity
 import com.example.linkup.core.designsystem.component.Avatar
 import com.example.linkup.core.designsystem.component.LinkUpField
 import com.example.linkup.core.designsystem.component.LinkUpTopBar
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.component.MediaPlaceholder
 import com.example.linkup.core.designsystem.component.PrimaryButton
 import com.example.linkup.core.designsystem.component.ScreenHeader
@@ -90,7 +92,7 @@ fun FeedScreen(
                     Box(
                         Modifier.weight(1f).clip(RoundedCornerShape(24.dp)).background(LinkCanvas).padding(horizontal = 16.dp, vertical = 12.dp)
                     ) { Text("What's on your mind?", color = LinkMuted) }
-                    Text("＋", color = LinkPurple, fontSize = 24.sp)
+                    Icon(LinkUpIcons.Plus, "Create post", tint = LinkPurple, modifier = Modifier.size(22.dp))
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -128,7 +130,7 @@ fun PostCard(
                 Text(post.author.name, fontWeight = FontWeight.Bold)
                 Text("${post.author.username} · ${post.time}", color = LinkMuted, fontSize = 12.sp)
             }
-            Text("•••", color = LinkMuted)
+            Icon(LinkUpIcons.MoreHorizontal, "Post options", tint = LinkMuted, modifier = Modifier.size(18.dp))
         }
         Text(post.content, modifier = Modifier.padding(horizontal = 16.dp).clickable(onClick = onOpen), lineHeight = 21.sp)
         post.mediaLabel?.let { mediaLabel ->

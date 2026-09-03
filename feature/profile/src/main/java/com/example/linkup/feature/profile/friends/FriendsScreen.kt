@@ -20,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.component.ChoiceChip
 import com.example.linkup.core.designsystem.component.FriendControls
 import com.example.linkup.core.designsystem.component.PersonRow
@@ -193,19 +195,19 @@ private fun FeedbackStrip(message: String, isError: Boolean, onDismiss: () -> Un
 
 @Composable
 private fun FriendsEmptyState(tab: FriendsTab) {
-    val (glyph, title, body) = when (tab) {
+    val (icon, title, body) = when (tab) {
         FriendsTab.FRIENDS -> Triple(
-            "☺",
+            LinkUpIcons.People,
             "No friends yet",
             "Check Suggestions, or search for someone and send them a friend request."
         )
         FriendsTab.REQUESTS -> Triple(
-            "✓",
+            LinkUpIcons.Check,
             "No pending requests",
             "When someone asks to be friends, their request lands here."
         )
         FriendsTab.SUGGESTIONS -> Triple(
-            "✦",
+            LinkUpIcons.Sparkle,
             "No suggestions right now",
             "Add a few friends and we'll suggest people you have friends in common with."
         )
@@ -219,7 +221,7 @@ private fun FriendsEmptyState(tab: FriendsTab) {
             Modifier.size(72.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text(glyph, color = LinkPurple, fontSize = 30.sp)
+            Icon(icon, null, tint = LinkPurple, modifier = Modifier.size(32.dp))
         }
         Spacer(Modifier.height(18.dp))
         Text(title, fontWeight = FontWeight.Bold, fontSize = 17.sp)
@@ -239,7 +241,7 @@ private fun FriendsErrorState(message: String, onRetry: () -> Unit) {
             Modifier.size(64.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text("!", color = LinkPurple, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Icon(LinkUpIcons.Info, null, tint = LinkPurple, modifier = Modifier.size(28.dp))
         }
         Spacer(Modifier.height(16.dp))
         Text("Couldn't load friends", fontWeight = FontWeight.Bold, fontSize = 17.sp)

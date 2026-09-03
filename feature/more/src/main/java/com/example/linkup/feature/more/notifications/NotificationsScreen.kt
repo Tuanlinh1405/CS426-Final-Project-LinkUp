@@ -25,6 +25,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.linkup.core.designsystem.component.ChoiceChip
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.theme.LinkDivider
 import com.example.linkup.core.designsystem.theme.LinkMuted
 import com.example.linkup.core.designsystem.theme.LinkPurple
@@ -171,11 +173,12 @@ private fun NotificationsHeader(
                 Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "‹",
-                    fontSize = 34.sp,
-                    modifier = Modifier.clickable(onClick = onBack).padding(end = 12.dp)
+                Icon(
+                    imageVector = LinkUpIcons.ChevronLeft,
+                    contentDescription = "Back",
+                    modifier = Modifier.size(26.dp).clickable(onClick = onBack)
                 )
+                Spacer(Modifier.width(10.dp))
                 Text("Notifications", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 if (unreadCount > 0) {
                     Spacer(Modifier.width(8.dp))
@@ -190,22 +193,20 @@ private fun NotificationsHeader(
                         modifier = Modifier.size(18.dp)
                     )
                 } else {
-                    Text(
-                        "⟳",
-                        color = LinkPurple,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable(onClick = onRefresh).padding(8.dp)
+                    Icon(
+                        imageVector = LinkUpIcons.Refresh,
+                        contentDescription = "Refresh",
+                        tint = LinkPurple,
+                        modifier = Modifier.clickable(onClick = onRefresh).padding(8.dp).size(20.dp)
                     )
                 }
 
                 Box {
-                    Text(
-                        "⋯",
-                        color = LinkPurple,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { menuOpen = true }.padding(8.dp)
+                    Icon(
+                        imageVector = LinkUpIcons.MoreHorizontal,
+                        contentDescription = "More",
+                        tint = LinkPurple,
+                        modifier = Modifier.clickable { menuOpen = true }.padding(8.dp).size(20.dp)
                     )
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
@@ -324,12 +325,11 @@ private fun NotificationRow(
         }
 
         Box {
-            Text(
-                "⋯",
-                color = LinkMuted,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable(enabled = !isBusy) { menuOpen = true }.padding(6.dp)
+            Icon(
+                imageVector = LinkUpIcons.MoreHorizontal,
+                contentDescription = "Options",
+                tint = LinkMuted,
+                modifier = Modifier.clickable(enabled = !isBusy) { menuOpen = true }.padding(6.dp).size(18.dp)
             )
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(
@@ -372,11 +372,11 @@ private fun FeedbackStrip(message: String, isError: Boolean, onDismiss: () -> Un
     ) {
         val foreground = if (isError) Color(0xFFB3261E) else Color(0xFF1B7A43)
         Text(message, color = foreground, fontSize = 13.sp, modifier = Modifier.weight(1f))
-        Text(
-            "✕",
-            color = foreground,
-            fontSize = 13.sp,
-            modifier = Modifier.clickable(onClick = onDismiss).padding(start = 8.dp)
+        Icon(
+            imageVector = LinkUpIcons.Close,
+            contentDescription = "Dismiss",
+            tint = foreground,
+            modifier = Modifier.clickable(onClick = onDismiss).padding(start = 8.dp).size(15.dp)
         )
     }
 }
@@ -398,7 +398,7 @@ private fun NotificationEmptyState(filter: NotificationFilter) {
             Modifier.size(72.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text("♢", color = LinkPurple, fontSize = 30.sp)
+            Icon(LinkUpIcons.Bell, null, tint = LinkPurple, modifier = Modifier.size(32.dp))
         }
         Spacer(Modifier.height(18.dp))
         Text(title, fontWeight = FontWeight.Bold, fontSize = 17.sp)
@@ -418,7 +418,7 @@ private fun NotificationErrorState(message: String, onRetry: () -> Unit) {
             Modifier.size(64.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text("!", color = LinkPurple, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Icon(LinkUpIcons.Info, null, tint = LinkPurple, modifier = Modifier.size(28.dp))
         }
         Spacer(Modifier.height(16.dp))
         Text("Couldn't load notifications", fontWeight = FontWeight.Bold, fontSize = 17.sp)

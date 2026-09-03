@@ -28,6 +28,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.component.ChoiceChip
 import com.example.linkup.core.designsystem.component.ScreenHeader
 import com.example.linkup.core.designsystem.theme.LinkDivider
@@ -366,7 +368,7 @@ private fun PhotoHeader(
                             .clickable(enabled = !avatarBusy, onClick = onChangeAvatar),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("✎", color = Color.White, fontSize = 14.sp)
+                        Icon(LinkUpIcons.Camera, "Change photo", tint = Color.White, modifier = Modifier.size(15.dp))
                     }
                 }
             }
@@ -518,7 +520,7 @@ private fun LoadErrorBlock(message: String, onRetry: () -> Unit) {
             Modifier.size(56.dp).clip(CircleShape).background(LinkDivider),
             contentAlignment = Alignment.Center
         ) {
-            Text("!", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = LinkMuted)
+            Icon(LinkUpIcons.Info, null, tint = LinkMuted, modifier = Modifier.size(26.dp))
         }
         Spacer(Modifier.height(14.dp))
         Text("Couldn't open your profile", fontWeight = FontWeight.Bold, fontSize = 16.sp)

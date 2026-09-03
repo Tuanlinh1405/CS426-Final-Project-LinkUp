@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.component.Avatar
 import com.example.linkup.core.designsystem.component.ChoiceChip
 import com.example.linkup.core.designsystem.component.EmptyState
@@ -65,7 +68,7 @@ fun SettingsScreen(onBack: () -> Unit, onLogout: () -> Unit, onDatingProfile: ()
 private fun SettingRow(title: String, subtitle: String, onClick: () -> Unit = {}) {
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) { Text(title, fontWeight = FontWeight.SemiBold); Text(subtitle, color = LinkMuted, fontSize = 12.sp) }
-        Text("›", color = LinkMuted, fontSize = 24.sp)
+        Icon(LinkUpIcons.ChevronRight, null, tint = LinkMuted, modifier = Modifier.size(18.dp))
     }
     HorizontalDivider(color = LinkDivider)
 }

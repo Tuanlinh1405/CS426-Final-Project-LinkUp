@@ -22,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -43,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.linkup.core.designsystem.component.FriendControls
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.component.ScreenHeader
 import com.example.linkup.core.designsystem.theme.LinkDivider
 import com.example.linkup.core.designsystem.theme.LinkMuted
@@ -283,7 +286,7 @@ private fun ProfileHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (onBack != null) {
-                OverlayGlyph("‹", onBack, fontSize = 26.sp)
+                OverlayIcon(LinkUpIcons.ChevronLeft, "Back", onBack)
             }
             Spacer(Modifier.weight(1f))
             if (isRefreshing) {
@@ -293,11 +296,11 @@ private fun ProfileHeader(
                     modifier = Modifier.size(20.dp)
                 )
             } else {
-                OverlayGlyph("⟳", onRefresh)
+                OverlayIcon(LinkUpIcons.Refresh, "Refresh", onRefresh)
             }
             if (profile.isMe) {
                 Spacer(Modifier.width(8.dp))
-                OverlayGlyph("⚙", onSettings)
+                OverlayIcon(LinkUpIcons.Settings, "Settings", onSettings)
             }
         }
 
@@ -329,9 +332,9 @@ private fun ProfileMetaRow(profile: Profile) {
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        location?.let { DetailChip("◎", it) }
-        website?.let { DetailChip("⚭", it, tint = LinkPurple) }
-        joined?.let { DetailChip("◷", it) }
+        location?.let { DetailChip(LinkUpIcons.Location, it) }
+        website?.let { DetailChip(LinkUpIcons.Link, it, tint = LinkPurple) }
+        joined?.let { DetailChip(LinkUpIcons.Calendar, it) }
     }
 }
 
@@ -340,12 +343,12 @@ private fun PrivateDetailsCard(profile: Profile) {
     ProfileCard {
         Text("Your details", fontWeight = FontWeight.Bold, fontSize = 15.sp)
         Spacer(Modifier.height(6.dp))
-        profile.email?.takeIf { it.isNotBlank() }?.let { DetailRow("✉", "Email", it) }
-        profile.phone?.takeIf { it.isNotBlank() }?.let { DetailRow("☎", "Phone", it) }
-        profile.location?.takeIf { it.isNotBlank() }?.let { DetailRow("◎", "Location", it) }
-        profile.website?.takeIf { it.isNotBlank() }?.let { DetailRow("⚭", "Website", it) }
+        profile.email?.takeIf { it.isNotBlank() }?.let { DetailRow(LinkUpIcons.Mail, "Email", it) }
+        profile.phone?.takeIf { it.isNotBlank() }?.let { DetailRow(LinkUpIcons.Phone, "Phone", it) }
+        profile.location?.takeIf { it.isNotBlank() }?.let { DetailRow(LinkUpIcons.Location, "Location", it) }
+        profile.website?.takeIf { it.isNotBlank() }?.let { DetailRow(LinkUpIcons.Link, "Website", it) }
         profile.birthdate?.takeIf { it.isNotBlank() }?.let { raw ->
-            formatBirthdate(raw)?.let { DetailRow("✦", "Birthday", it) }
+            formatBirthdate(raw)?.let { DetailRow(LinkUpIcons.Star, "Birthday", it) }
         }
         Spacer(Modifier.height(8.dp))
         Text("Only you can see this section.", color = LinkMuted, fontSize = 11.sp)
@@ -390,7 +393,7 @@ private fun ProfileActions(
                 modifier = Modifier.height(44.dp),
                 shape = RoundedCornerShape(10.dp)
             ) {
-                Text("⚙", fontSize = 16.sp)
+                Icon(LinkUpIcons.Settings, "Settings", modifier = Modifier.size(18.dp))
             }
         } else {
             // Friendship is the primary relationship, so it leads; following is
@@ -442,7 +445,7 @@ private fun TabPlaceholder(tab: String, isMe: Boolean, name: String) {
             Modifier.size(56.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text("◇", color = LinkPurple, fontSize = 22.sp)
+            Icon(LinkUpIcons.Diamond, null, tint = LinkPurple, modifier = Modifier.size(24.dp))
         }
         Spacer(Modifier.height(12.dp))
         Text("Nothing here yet", fontWeight = FontWeight.Bold, fontSize = 15.sp)
@@ -451,17 +454,18 @@ private fun TabPlaceholder(tab: String, isMe: Boolean, name: String) {
     }
 }
 
+/** Circular control floating on the cover photo, legible against any image. */
 @Composable
-private fun OverlayGlyph(glyph: String, onClick: () -> Unit, fontSize: TextUnit = 17.sp) {
+private fun OverlayIcon(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
     Box(
         Modifier
             .size(36.dp)
             .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.32f))
+            .background(Color.Black.copy(alpha = 0.34f))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(glyph, color = Color.White, fontSize = fontSize, fontWeight = FontWeight.Bold)
+        Icon(icon, contentDescription, tint = Color.White, modifier = Modifier.size(19.dp))
     }
 }
 
@@ -476,11 +480,11 @@ private fun InlineBanner(text: String, onDismiss: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text, color = Color(0xFFB3261E), fontSize = 13.sp, modifier = Modifier.weight(1f))
-        Text(
-            "✕",
-            color = Color(0xFFB3261E),
-            fontSize = 13.sp,
-            modifier = Modifier.clickable(onClick = onDismiss).padding(start = 8.dp)
+        Icon(
+            imageVector = LinkUpIcons.Close,
+            contentDescription = "Dismiss",
+            tint = Color(0xFFB3261E),
+            modifier = Modifier.clickable(onClick = onDismiss).padding(start = 8.dp).size(16.dp)
         )
     }
 }
@@ -545,7 +549,7 @@ private fun ProfileErrorState(message: String, onRetry: () -> Unit) {
             Modifier.size(64.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text("!", color = LinkPurple, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Icon(LinkUpIcons.Info, null, tint = LinkPurple, modifier = Modifier.size(28.dp))
         }
         Spacer(Modifier.height(16.dp))
         Text("Couldn't load this profile", fontWeight = FontWeight.Bold, fontSize = 17.sp)

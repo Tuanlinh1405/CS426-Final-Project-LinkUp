@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,6 +26,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,6 +47,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.component.Avatar
 import com.example.linkup.core.designsystem.component.LinkUpField
 import com.example.linkup.core.designsystem.component.ScreenHeader
@@ -216,7 +219,7 @@ fun ChatListScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("💬", fontSize = 48.sp)
+                        Icon(LinkUpIcons.Chat, null, tint = LinkPurple, modifier = Modifier.size(48.dp))
                         Spacer(Modifier.height(12.dp))
                         Text(
                             "Chưa có cuộc trò chuyện nào",
@@ -344,7 +347,7 @@ fun ChatDetailScreen(
             Modifier.fillMaxWidth().background(Color.White).padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("＋", color = LinkPurple, fontSize = 26.sp, modifier = Modifier.padding(end = 6.dp))
+            Icon(LinkUpIcons.Plus, "Attach", tint = LinkPurple, modifier = Modifier.padding(end = 6.dp).size(24.dp))
             LinkUpField(draft, { draft = it }, "Type a message", Modifier.weight(1f))
             Text(
                 "➤",

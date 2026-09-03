@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -24,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -166,7 +168,7 @@ fun StatColumn(
 /** Small pill used for location, link and join date. */
 @Composable
 fun DetailChip(
-    glyph: String,
+    icon: ImageVector,
     text: String,
     modifier: Modifier = Modifier,
     tint: Color = LinkMuted,
@@ -179,7 +181,7 @@ fun DetailChip(
             .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(glyph, fontSize = 13.sp, color = tint)
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(6.dp))
         Text(
             text = text,
@@ -210,13 +212,13 @@ fun ProfileCard(
 
 /** A labelled line inside [ProfileCard]. */
 @Composable
-fun DetailRow(glyph: String, label: String, value: String) {
+fun DetailRow(icon: ImageVector, label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier.size(34.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text(glyph, color = LinkPurple, fontSize = 15.sp)
+            Icon(icon, contentDescription = null, tint = LinkPurple, modifier = Modifier.size(16.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {

@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.component.ChoiceChip
 import com.example.linkup.core.designsystem.component.LinkUpField
 import com.example.linkup.core.designsystem.component.LinkUpLogo
@@ -62,7 +65,7 @@ fun RegisterScreen(
 
     Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState())) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("‹", fontSize = 34.sp, modifier = Modifier.clickable(onClick = onBack, enabled = !isLoading).padding(end = 12.dp))
+            Icon(LinkUpIcons.ChevronLeft, "Back", modifier = Modifier.size(26.dp).clickable(onClick = onBack, enabled = !isLoading).padding(end = 12.dp))
             LinkUpLogo(compact = true)
         }
         Column(Modifier.padding(horizontal = 24.dp)) {

@@ -20,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.component.FollowPill
 import com.example.linkup.core.designsystem.component.PersonRow
 import com.example.linkup.core.designsystem.component.PersonRowSkeleton
@@ -160,7 +162,7 @@ private fun ListEmptyState(mode: UserListMode) {
             Modifier.size(64.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text("☺", color = LinkPurple, fontSize = 28.sp)
+            Icon(LinkUpIcons.People, null, tint = LinkPurple, modifier = Modifier.size(30.dp))
         }
         Spacer(Modifier.height(16.dp))
         Text(title, fontWeight = FontWeight.Bold, fontSize = 17.sp)
@@ -180,7 +182,7 @@ private fun ListErrorState(message: String, onRetry: () -> Unit) {
             Modifier.size(64.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text("!", color = LinkPurple, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Icon(LinkUpIcons.Info, null, tint = LinkPurple, modifier = Modifier.size(28.dp))
         }
         Spacer(Modifier.height(16.dp))
         Text("Couldn't load this list", fontWeight = FontWeight.Bold, fontSize = 17.sp)
