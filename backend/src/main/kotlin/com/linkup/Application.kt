@@ -17,6 +17,12 @@ import com.linkup.service.JwtService
 import com.linkup.storage.LocalMediaStorage
 import com.linkup.storage.MediaStorage
 import com.linkup.websocket.ChatWebSocketManager
+import com.linkup.posts.PostRepository
+import com.linkup.posts.postRoutes
+import com.linkup.reels.ReelRepository
+import com.linkup.reels.reelRoutes
+import com.linkup.search.SearchRepository
+import com.linkup.search.searchRoutes
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
@@ -71,6 +77,9 @@ fun Application.module() {
     val friendRepository = FriendRepository()
     val wsManager = ChatWebSocketManager(chatRepository)
     val mediaStorage: MediaStorage = LocalMediaStorage()
+    val reelRepository = ReelRepository()
+    val postRepository = PostRepository()
+    val searchRepository = SearchRepository()
 
     routing {
         get("/") {
@@ -87,5 +96,8 @@ fun Application.module() {
         notificationRoutes(notificationRepository)
         userRoutes(profileRepository)
         friendRoutes(friendRepository, profileRepository)
+        reelRoutes(reelRepository)
+        postRoutes(postRepository)
+        searchRoutes(searchRepository)
     }
 }

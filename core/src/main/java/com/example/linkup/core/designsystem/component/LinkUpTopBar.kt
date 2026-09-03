@@ -1,5 +1,11 @@
 package com.example.linkup.core.designsystem.component
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,18 +18,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.theme.LinkDivider
+import com.example.linkup.core.designsystem.theme.LinkInk
 import com.example.linkup.core.designsystem.theme.LinkPink
 import com.example.linkup.core.designsystem.theme.LinkPurple
 import com.example.linkup.core.designsystem.theme.LinkPurpleSoft
@@ -33,7 +45,9 @@ fun ScreenHeader(
     title: String,
     onBack: (() -> Unit)? = null,
     action: String? = null,
-    onAction: () -> Unit = {}
+    onAction: () -> Unit = {},
+    /** When set, the title becomes tappable — used to open a chat peer's profile. */
+    onTitleClick: (() -> Unit)? = null
 ) {
     Surface(shadowElevation = 1.dp) {
         Column {
@@ -42,9 +56,30 @@ fun ScreenHeader(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (onBack != null) {
-                    Text("‹", fontSize = 34.sp, modifier = Modifier.clickable(onClick = onBack).padding(end = 12.dp))
+                    Icon(
+                        imageVector = LinkUpIcons.ChevronLeft,
+                        contentDescription = "Back",
+                        tint = LinkInk,
+                        modifier = Modifier
+                            .size(26.dp)
+                            .clickable(onClick = onBack)
+                    )
+                    Spacer(Modifier.width(10.dp))
                 }
-                Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.weight(1f))
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    modifier = Modifier
+                        .weight(1f)
+                        .then(
+                            if (onTitleClick != null) {
+                                Modifier.clickable(onClick = onTitleClick)
+                            } else {
+                                Modifier
+                            }
+                        )
+                )
                 if (action != null) {
                     Text(action, color = LinkPurple, fontWeight = FontWeight.Bold, modifier = Modifier.clickable(onClick = onAction))
                 }
@@ -70,26 +105,41 @@ fun LinkUpTopBar(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("LinkUp", color = LinkPurple, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, modifier = Modifier.weight(1f))
-            TopAction("⌕", onSearch)
+            TopAction(LinkUpIcons.Search, "Search", onSearch)
             if (onFriends != null) {
-                TopAction("☺", onFriends, badgeCount = pendingFriendRequests)
+                TopAction(LinkUpIcons.People, "Friends", onFriends, badgeCount = pendingFriendRequests)
             }
-            TopAction("♢", onNotifications, badgeCount = unreadNotifications)
-            TopAction("AI", onAi)
+            TopAction(LinkUpIcons.Bell, "Notifications", onNotifications, badgeCount = unreadNotifications)
+            TopAction(LinkUpIcons.Sparkle, "AI assistant", onAi)
         }
     }
 }
 
 @Composable
-private fun TopAction(text: String, onClick: () -> Unit, badgeCount: Int = 0) {
+private fun TopAction(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    badgeCount: Int = 0
+) {
     Box(contentAlignment = Alignment.TopEnd) {
         Box(
-            modifier = Modifier.size(34.dp).clip(CircleShape).background(LinkPurpleSoft).clickable(onClick = onClick),
+            modifier = Modifier.size(38.dp).clip(CircleShape).background(LinkPurpleSoft).clickable(onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
-            Text(text, color = LinkPurple, fontWeight = FontWeight.Bold)
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = LinkPurple,
+                modifier = Modifier.size(20.dp)
+            )
         }
-        if (badgeCount > 0) {
+        // A count that appears mid-session should grow into place, not blink on.
+        AnimatedVisibility(
+            visible = badgeCount > 0,
+            enter = scaleIn(tween(180)) + fadeIn(tween(180)),
+            exit = scaleOut(tween(140)) + fadeOut(tween(140))
+        ) {
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))

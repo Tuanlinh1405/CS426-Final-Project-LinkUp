@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -19,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.theme.LinkMuted
 import com.example.linkup.core.designsystem.theme.LinkPurple
 import com.example.linkup.core.designsystem.theme.LinkPurpleSoft
@@ -35,7 +37,7 @@ fun MediaPlaceholder(label: String, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("◇", color = Color.White, fontSize = 48.sp)
+            Icon(LinkUpIcons.Image, null, tint = Color.White, modifier = Modifier.size(48.dp))
             Text(label, color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
@@ -51,7 +53,7 @@ fun EmptyState(title: String, message: String) {
             modifier = Modifier.size(64.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text("∞", color = LinkPurple, fontSize = 28.sp)
+            Icon(LinkUpIcons.Diamond, null, tint = LinkPurple, modifier = Modifier.size(28.dp))
         }
         Spacer(Modifier.height(16.dp))
         Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp)

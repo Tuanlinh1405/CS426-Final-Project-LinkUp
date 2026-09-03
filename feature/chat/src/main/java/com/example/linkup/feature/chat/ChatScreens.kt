@@ -1,5 +1,9 @@
 package com.example.linkup.feature.chat
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -33,6 +37,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -45,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +67,7 @@ import coil.compose.AsyncImage
 import com.example.linkup.core.designsystem.component.CircleAvatar
 import com.example.linkup.core.designsystem.component.GroupAvatar
 import com.example.linkup.core.designsystem.component.LinkUpField
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.theme.LinkCanvas
 import com.example.linkup.core.designsystem.theme.LinkDivider
 import com.example.linkup.core.designsystem.theme.LinkMuted
@@ -71,16 +78,11 @@ import com.example.linkup.data.model.Message
 import com.example.linkup.data.model.MessageStatus
 import com.example.linkup.data.model.UserSummary
 import com.example.linkup.data.util.ChatTime
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.flow.collect
 
 @Composable
 fun ChatListRoute(
     onOpenChat: (Conversation) -> Unit,
+    onOpenProfile: ((String) -> Unit)? = null,
     viewModel: ChatListViewModel = hiltViewModel(),
 ) {
     val conversations by viewModel.conversations.collectAsState()
@@ -113,7 +115,8 @@ fun ChatListRoute(
         onCreateGroup = { name, memberIds ->
             viewModel.createGroupConversation(name, memberIds) { newConv -> onOpenChat(newConv) }
         },
-        onOpenChat = onOpenChat
+        onOpenChat = onOpenChat,
+        onOpenProfile = onOpenProfile
     )
 }
 
@@ -122,6 +125,8 @@ fun ChatDetailRoute(
     conversationId: String,
     title: String = "Chat",
     onBack: () -> Unit,
+    peerUserId: String? = null,
+    onOpenProfile: ((String) -> Unit)? = null,
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(conversationId) {
@@ -159,6 +164,11 @@ fun ChatDetailRoute(
         onSendImage = { uri -> viewModel.sendImage(uri) },
         onDeleteMessage = { msgId -> viewModel.deleteMessage(msgId) },
         onLoadOlder = { viewModel.loadOlder() },
+        onOpenProfile = if (peerUserId != null && onOpenProfile != null) {
+            { onOpenProfile(peerUserId) }
+        } else {
+            null
+        }
     )
 }
 
@@ -179,6 +189,8 @@ fun ChatListScreen(
     onDismissGroupDialog: () -> Unit = {},
     onCreateGroup: (String, List<String>) -> Unit = { _, _ -> },
     onOpenChat: (Conversation) -> Unit,
+    /** Opens the other person's profile. Null leaves avatars inert. */
+    onOpenProfile: ((String) -> Unit)? = null,
 ) {
     var localQuery by remember { mutableStateOf("") }
     var showNewChatDialog by remember { mutableStateOf(false) }
@@ -305,7 +317,7 @@ fun ChatListScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("💬", fontSize = 48.sp)
+                        Icon(LinkUpIcons.Chat, null, tint = LinkPurple, modifier = Modifier.size(48.dp))
                         Spacer(Modifier.height(12.dp))
                         Text(
                             "Chưa có cuộc trò chuyện nào",
@@ -341,7 +353,8 @@ fun ChatListScreen(
                     ConversationRow(
                         conversation = conversation,
                         isPeerTyping = conversation.id in typingConversationIds,
-                        onClick = { onOpenChat(conversation) }
+                        onClick = { onOpenChat(conversation) },
+                        onOpenProfile = onOpenProfile
                     )
                     HorizontalDivider(color = LinkDivider, modifier = Modifier.padding(start = 76.dp))
                 }
@@ -355,19 +368,33 @@ private fun ConversationRow(
     conversation: Conversation,
     isPeerTyping: Boolean,
     onClick: () -> Unit,
+    onOpenProfile: ((String) -> Unit)? = null,
 ) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (conversation.isGroup) {
-            GroupAvatar(
-                members = conversation.others.take(2).map { it.avatarUrl to it.initials },
-                fallbackInitials = conversation.user.initials,
-                size = 48.dp
+        val peerId = conversation.user.id.takeIf {
+            onOpenProfile != null && !conversation.isGroup
+        }
+        Box(
+            Modifier.then(
+                if (peerId != null) {
+                    Modifier.clickable { onOpenProfile?.invoke(peerId) }
+                } else {
+                    Modifier
+                }
             )
-        } else {
-            CircleAvatar(conversation.user.avatarUrl, conversation.user.initials, 48.dp)
+        ) {
+            if (conversation.isGroup) {
+                GroupAvatar(
+                    members = conversation.others.take(2).map { it.avatarUrl to it.initials },
+                    fallbackInitials = conversation.user.initials,
+                    size = 48.dp
+                )
+            } else {
+                CircleAvatar(conversation.user.avatarUrl, conversation.user.initials, 48.dp)
+            }
         }
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Text(conversation.user.name, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -414,6 +441,8 @@ fun ChatDetailScreen(
     onSendImage: ((Uri) -> Unit)? = null,
     onDeleteMessage: ((String) -> Unit)? = null,
     onLoadOlder: (() -> Unit)? = null,
+    /** Opens the person you are talking to, from the header title or avatar. */
+    onOpenProfile: (() -> Unit)? = null,
 ) {
     var draft by remember { mutableStateOf("") }
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
@@ -422,7 +451,7 @@ fun ChatDetailScreen(
 
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri -> if (uri != null) onSendImage?.invoke(uri) }
+    ) { uri: Uri? -> if (uri != null) onSendImage?.invoke(uri) }
 
     // Only follow new messages when the user is already near the bottom. Scrolling to the
     // end on every size change fought pagination: prepending older rows grows the list and
@@ -485,7 +514,8 @@ fun ChatDetailScreen(
             avatarUrl = avatarUrl,
             initials = initials,
             memberFaces = groupFaces,
-            onBack = onBack
+            onBack = onBack,
+            onOpenProfile = onOpenProfile
         )
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
@@ -520,7 +550,8 @@ fun ChatDetailScreen(
                     senderInitials = face?.second ?: message.senderName?.take(1)?.uppercase() ?: "?",
                     onLongPress = if (message.fromMe && onDeleteMessage != null) {
                         { pendingDeleteId = message.id }
-                    } else null
+                    } else null,
+                    onOpenProfile = onOpenProfile
                 )
             }
         }
@@ -528,10 +559,10 @@ fun ChatDetailScreen(
             Modifier.fillMaxWidth().background(Color.White).padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                "＋",
-                color = LinkPurple,
-                fontSize = 26.sp,
+            Icon(
+                imageVector = LinkUpIcons.Plus,
+                contentDescription = "Attach image",
+                tint = LinkPurple,
                 modifier = Modifier
                     .clickable {
                         imagePicker.launch(
@@ -539,6 +570,7 @@ fun ChatDetailScreen(
                         )
                     }
                     .padding(end = 6.dp)
+                    .size(24.dp)
             )
             LinkUpField(draft, { draft = it }, "Type a message", Modifier.weight(1f))
             Text(
@@ -582,6 +614,7 @@ private fun ChatDetailHeader(
     initials: String,
     memberFaces: List<Pair<String?, String>>,
     onBack: () -> Unit,
+    onOpenProfile: (() -> Unit)? = null,
 ) {
     Surface(shadowElevation = 1.dp) {
         Column {
@@ -594,12 +627,25 @@ private fun ChatDetailHeader(
                     fontSize = 34.sp,
                     modifier = Modifier.clickable(onClick = onBack).padding(end = 12.dp)
                 )
-                if (isGroup) {
-                    GroupAvatar(memberFaces, initials, 36.dp)
-                } else {
-                    CircleAvatar(avatarUrl, initials, 36.dp)
+                Box(
+                    Modifier.then(
+                        if (onOpenProfile != null) Modifier.clickable(onClick = onOpenProfile) else Modifier
+                    )
+                ) {
+                    if (isGroup) {
+                        GroupAvatar(memberFaces, initials, 36.dp)
+                    } else {
+                        CircleAvatar(avatarUrl, initials, 36.dp)
+                    }
                 }
-                Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .padding(start = 10.dp)
+                        .then(
+                            if (onOpenProfile != null) Modifier.clickable(onClick = onOpenProfile) else Modifier
+                        )
+                ) {
                     Text(
                         title,
                         fontWeight = FontWeight.Bold,
@@ -636,7 +682,7 @@ fun ChatDetailScreen(
         )
     }
     ChatDetailScreen(
-        title = "Alex Chen · online",
+        title = "Chat",
         messages = domainMessages,
         isPeerTyping = false,
         initials = "AC",
@@ -648,11 +694,12 @@ fun ChatDetailScreen(
 @Composable
 private fun DomainMessageBubble(
     message: Message,
-    showSenderName: Boolean,
-    showAvatar: Boolean,
-    senderAvatarUrl: String?,
-    senderInitials: String,
+    showSenderName: Boolean = false,
+    showAvatar: Boolean = true,
+    senderAvatarUrl: String? = null,
+    senderInitials: String = "C",
     onLongPress: (() -> Unit)? = null,
+    onOpenProfile: (() -> Unit)? = null,
 ) {
     Row(
         Modifier.fillMaxWidth(),
@@ -660,7 +707,13 @@ private fun DomainMessageBubble(
     ) {
         if (!message.fromMe) {
             if (showAvatar) {
-                CircleAvatar(senderAvatarUrl, senderInitials, 30.dp)
+                Box(
+                    Modifier.then(
+                        if (onOpenProfile != null) Modifier.clickable(onClick = onOpenProfile) else Modifier
+                    )
+                ) {
+                    CircleAvatar(senderAvatarUrl, senderInitials, 30.dp)
+                }
             } else {
                 Spacer(Modifier.width(30.dp))
             }

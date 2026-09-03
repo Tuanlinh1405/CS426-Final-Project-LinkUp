@@ -96,3 +96,47 @@ class AppNavigatorArgumentTest {
         assertFalse(navigator.back())
     }
 }
+
+/** The direction a transition should animate in. */
+class AppNavigatorDirectionTest {
+
+    @Test
+    fun `going deeper is forward, going back is backward`() {
+        val navigator = AppNavigator(AppRoute.FEED)
+
+        navigator.goTo(AppRoute.PROFILE, "user-a")
+        assertEquals(NavDirection.FORWARD, navigator.direction)
+
+        navigator.goTo(AppRoute.SETTINGS)
+        assertEquals(NavDirection.FORWARD, navigator.direction)
+
+        navigator.back()
+        assertEquals(NavDirection.BACKWARD, navigator.direction)
+    }
+
+    @Test
+    fun `replace and reset are neither, so they cross-fade`() {
+        val navigator = AppNavigator(AppRoute.SPLASH)
+
+        navigator.replace(AppRoute.LOGIN)
+        assertEquals(NavDirection.REPLACE, navigator.direction)
+
+        navigator.goTo(AppRoute.REGISTER)
+        navigator.reset(AppRoute.FEED)
+        assertEquals(NavDirection.REPLACE, navigator.direction)
+    }
+
+    @Test
+    fun `a rejected navigation leaves the direction alone`() {
+        val navigator = AppNavigator(AppRoute.FEED)
+        navigator.reset(AppRoute.FEED)
+
+        // Same route and argument: ignored, so nothing moved to animate.
+        navigator.goTo(AppRoute.FEED)
+        assertEquals(NavDirection.REPLACE, navigator.direction)
+
+        // And back with an empty history changes nothing either.
+        assertFalse(navigator.back())
+        assertEquals(NavDirection.REPLACE, navigator.direction)
+    }
+}

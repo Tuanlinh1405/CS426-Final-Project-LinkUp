@@ -22,27 +22,13 @@ object DatabaseFactory {
         Executors.newFixedThreadPool(POOL_SIZE).asCoroutineDispatcher()
 
     fun init() {
-        val driverClassName = "org.postgresql.Driver"
-        val rawUri = EnvConfig.DATABASE_URL
+        val databaseConfig = EnvConfig.database
 
         val hikariConfig = HikariConfig().apply {
-            this.driverClassName = driverClassName
-
-            val regex = Regex("""postgresql://([^:]+):([^@]+)@([^:/]+)(?::(\d+))?/(.+)""")
-            val match = regex.find(rawUri)
-
-            if (match != null) {
-                val (user, password, host, portStr, dbName) = match.destructured
-                val port = if (portStr.isNotEmpty()) portStr else "6543"
-                val cleanDb = dbName.substringBefore("?")
-                jdbcUrl = "jdbc:postgresql://$host:$port/$cleanDb?sslmode=require&prepareThreshold=0"
-                username = user
-                this.password = password
-            } else if (rawUri.startsWith("jdbc:")) {
-                jdbcUrl = rawUri
-            } else {
-                jdbcUrl = rawUri.replace("postgresql://", "jdbc:postgresql://")
-            }
+            driverClassName = "org.postgresql.Driver"
+            jdbcUrl = databaseConfig.jdbcUrl
+            username = databaseConfig.username
+            password = databaseConfig.password
 
             // HikariCP pool configuration. Connections to the Supabase pooler are expensive
             // (~1.5-2s each over TLS), so the pool never shrinks below POOL_SIZE and Hikari
@@ -92,6 +78,9 @@ object DatabaseFactory {
             applyColumnMigrations()
         }
     }
+
+    /** Shared pooled connection for repositories that use hand-written SQL. */
+    fun connection(): java.sql.Connection = dataSource.connection
 
     /**
      * Adds columns introduced after a database was first created.

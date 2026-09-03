@@ -20,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +35,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
+import com.example.linkup.core.designsystem.component.AnimatedBanner
 import com.example.linkup.core.designsystem.component.FollowPill
 import com.example.linkup.core.designsystem.component.PersonRow
 import com.example.linkup.core.designsystem.component.PersonRowSkeleton
@@ -70,25 +73,11 @@ fun UserListScreen(
     Column(modifier.fillMaxSize().background(Color.White)) {
         ScreenHeader(if (state.total > 0) "$title (${state.total})" else title, onBack)
 
-        state.message?.let { message ->
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFFFDECEF))
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(message, color = Color(0xFFB3261E), fontSize = 13.sp, modifier = Modifier.weight(1f))
-                Text(
-                    "✕",
-                    color = Color(0xFFB3261E),
-                    fontSize = 13.sp,
-                    modifier = Modifier.clickable(onClick = viewModel::consumeMessage).padding(start = 8.dp)
-                )
-            }
-        }
+        AnimatedBanner(
+            message = state.message,
+            isError = true,
+            onDismiss = viewModel::consumeMessage
+        )
 
         when {
             state.isLoading -> PersonRowSkeleton()
@@ -102,6 +91,7 @@ fun UserListScreen(
 
             else -> LazyColumn(Modifier.fillMaxSize()) {
                 items(state.items, key = { it.id }) { person ->
+                    Column(Modifier.animateItem()) {
                     PersonRow(
                         displayName = person.displayName,
                         handle = person.handle,
@@ -119,6 +109,7 @@ fun UserListScreen(
                         }
                     )
                     HorizontalDivider(color = LinkDivider.copy(alpha = 0.6f))
+                    }
                 }
 
                 if (state.hasMore) {
@@ -160,7 +151,7 @@ private fun ListEmptyState(mode: UserListMode) {
             Modifier.size(64.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text("☺", color = LinkPurple, fontSize = 28.sp)
+            Icon(LinkUpIcons.People, null, tint = LinkPurple, modifier = Modifier.size(30.dp))
         }
         Spacer(Modifier.height(16.dp))
         Text(title, fontWeight = FontWeight.Bold, fontSize = 17.sp)
@@ -180,7 +171,7 @@ private fun ListErrorState(message: String, onRetry: () -> Unit) {
             Modifier.size(64.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text("!", color = LinkPurple, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Icon(LinkUpIcons.Info, null, tint = LinkPurple, modifier = Modifier.size(28.dp))
         }
         Spacer(Modifier.height(16.dp))
         Text("Couldn't load this list", fontWeight = FontWeight.Bold, fontSize = 17.sp)

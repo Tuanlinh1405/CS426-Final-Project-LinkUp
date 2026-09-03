@@ -7,13 +7,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -24,6 +27,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.data.model.Notification
 import com.example.linkup.data.model.NotificationType
 
@@ -32,19 +37,19 @@ private val AvatarFallbackBrush = Brush.linearGradient(
 )
 
 /** Glyph and colour that identify a notification kind at a glance. */
-internal data class TypeAccent(val glyph: String, val color: Color)
+internal data class TypeAccent(val icon: ImageVector, val color: Color)
 
 internal fun accentFor(type: NotificationType): TypeAccent = when (type) {
-    NotificationType.FOLLOW -> TypeAccent("+", Color(0xFF7C3AED))
-    NotificationType.LIKE -> TypeAccent("♥", Color(0xFFFF3D71))
-    NotificationType.COMMENT -> TypeAccent("❝", Color(0xFF2F80ED))
-    NotificationType.MENTION -> TypeAccent("@", Color(0xFF00A08A))
-    NotificationType.MESSAGE -> TypeAccent("✉", Color(0xFF2F80ED))
-    NotificationType.FRIEND_REQUEST -> TypeAccent("☺", Color(0xFF7C3AED))
-    NotificationType.FRIEND_ACCEPT -> TypeAccent("✓", Color(0xFF1B7A43))
-    NotificationType.DATING_MATCH -> TypeAccent("♡", Color(0xFFE73C91))
-    NotificationType.SYSTEM -> TypeAccent("★", Color(0xFF7C3AED))
-    NotificationType.UNKNOWN -> TypeAccent("•", Color(0xFF777286))
+    NotificationType.FOLLOW -> TypeAccent(LinkUpIcons.Plus, Color(0xFF7C3AED))
+    NotificationType.LIKE -> TypeAccent(LinkUpIcons.HeartFilled, Color(0xFFFF3D71))
+    NotificationType.COMMENT -> TypeAccent(LinkUpIcons.Comment, Color(0xFF2F80ED))
+    NotificationType.MENTION -> TypeAccent(LinkUpIcons.Sparkle, Color(0xFF00A08A))
+    NotificationType.MESSAGE -> TypeAccent(LinkUpIcons.Mail, Color(0xFF2F80ED))
+    NotificationType.FRIEND_REQUEST -> TypeAccent(LinkUpIcons.People, Color(0xFF7C3AED))
+    NotificationType.FRIEND_ACCEPT -> TypeAccent(LinkUpIcons.Check, Color(0xFF1B7A43))
+    NotificationType.DATING_MATCH -> TypeAccent(LinkUpIcons.HeartFilled, Color(0xFFE73C91))
+    NotificationType.SYSTEM -> TypeAccent(LinkUpIcons.Star, Color(0xFF7C3AED))
+    NotificationType.UNKNOWN -> TypeAccent(LinkUpIcons.Info, Color(0xFF777286))
 }
 
 /**
@@ -68,7 +73,8 @@ fun NotificationAvatar(
             contentAlignment = Alignment.Center
         ) {
             when {
-                notification.isSystem -> Text("★", color = accent.color, fontSize = 20.sp)
+                notification.isSystem ->
+                    Icon(LinkUpIcons.Star, null, tint = accent.color, modifier = Modifier.size(21.dp))
 
                 notification.actor.avatarUrl.isNullOrBlank() -> Box(
                     Modifier.fillMaxSize().clip(CircleShape).background(AvatarFallbackBrush),
@@ -83,7 +89,7 @@ fun NotificationAvatar(
                 }
 
                 else -> AsyncImage(
-                    model = notification.actor.avatarUrl,
+                    model = fadeInRequest(notification.actor.avatarUrl),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize().clip(CircleShape).background(AvatarFallbackBrush)
@@ -103,7 +109,7 @@ fun NotificationAvatar(
                     Modifier.size(17.dp).clip(CircleShape).background(accent.color),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(accent.glyph, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Icon(accent.icon, null, tint = Color.White, modifier = Modifier.size(10.dp))
                 }
             }
         }
@@ -160,3 +166,16 @@ fun NotificationBadge(count: Int, modifier: Modifier = Modifier) {
         )
     }
 }
+
+/**
+ * Wraps a URL so Coil fades the decoded image in.
+ *
+ * Without this an avatar snaps from placeholder to photo the instant it decodes,
+ * which reads as a flicker while a list scrolls.
+ */
+@Composable
+internal fun fadeInRequest(url: String?): ImageRequest =
+    ImageRequest.Builder(LocalContext.current)
+        .data(url)
+        .crossfade(true)
+        .build()

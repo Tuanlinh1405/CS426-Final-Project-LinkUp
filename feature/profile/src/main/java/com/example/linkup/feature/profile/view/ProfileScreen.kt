@@ -1,5 +1,10 @@
 package com.example.linkup.feature.profile.view
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -22,6 +27,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,7 +40,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -43,6 +51,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.linkup.core.designsystem.component.FriendControls
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
+import com.example.linkup.core.designsystem.motion.Motion
+import com.example.linkup.core.designsystem.motion.rememberShimmerBrush
+import com.example.linkup.core.designsystem.component.ScreenHeader
 import com.example.linkup.core.designsystem.theme.LinkDivider
 import com.example.linkup.core.designsystem.theme.LinkMuted
 import com.example.linkup.core.designsystem.theme.LinkPurple
@@ -90,15 +102,38 @@ fun ProfileScreen(
     LaunchedEffect(userId) { viewModel.load(userId) }
 
     Box(modifier.fillMaxSize()) {
-        when (val state = uiState) {
-            is ProfileUiState.Loading -> ProfileSkeleton()
+        val phase = when (uiState) {
+            is ProfileUiState.Loading -> ProfilePhase.LOADING
+            is ProfileUiState.Error -> ProfilePhase.ERROR
+            is ProfileUiState.Ready -> ProfilePhase.READY
+        }
 
-            is ProfileUiState.Error -> ProfileErrorState(
-                message = state.message,
-                onRetry = { viewModel.load(userId, force = true) }
-            )
+        AnimatedContent(
+            targetState = phase,
+            transitionSpec = {
+                fadeIn(tween(Motion.MEDIUM_MS)) togetherWith fadeOut(tween(Motion.QUICK_MS))
+            },
+            label = "profilePhase"
+        ) { target ->
+            when (target) {
+            // The skeleton and the error page keep a visible way back: without the
+            // header, a profile that fails to load strands the user on a dead screen
+            // with nothing but the system gesture to escape it.
+            ProfilePhase.LOADING -> Column(Modifier.fillMaxSize()) {
+                if (onBack != null) ScreenHeader(title = "Profile", onBack = onBack)
+                ProfileSkeleton()
+            }
 
-            is ProfileUiState.Ready -> ProfileContent(
+            ProfilePhase.ERROR -> Column(Modifier.fillMaxSize()) {
+                if (onBack != null) ScreenHeader(title = "Profile", onBack = onBack)
+                ProfileErrorState(
+                    message = (uiState as? ProfileUiState.Error)?.message.orEmpty(),
+                    onRetry = { viewModel.load(userId, force = true) }
+                )
+            }
+
+            ProfilePhase.READY -> (uiState as? ProfileUiState.Ready)?.let { state ->
+                ProfileContent(
                 state = state,
                 onEdit = onEdit,
                 onSettings = onSettings,
@@ -116,10 +151,15 @@ fun ProfileScreen(
                     onDecline = viewModel::declineFriendRequest,
                     onUnfriend = viewModel::unfriend
                 )
-            )
+                )
+            }
+            }
         }
     }
 }
+
+/** Which of the three states the screen is in — the key the cross-fade animates on. */
+private enum class ProfilePhase { LOADING, ERROR, READY }
 
 @Composable
 private fun ProfileContent(
@@ -273,7 +313,7 @@ private fun ProfileHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (onBack != null) {
-                OverlayGlyph("‹", onBack, fontSize = 26.sp)
+                OverlayIcon(LinkUpIcons.ChevronLeft, "Back", onBack)
             }
             Spacer(Modifier.weight(1f))
             if (isRefreshing) {
@@ -283,11 +323,11 @@ private fun ProfileHeader(
                     modifier = Modifier.size(20.dp)
                 )
             } else {
-                OverlayGlyph("⟳", onRefresh)
+                OverlayIcon(LinkUpIcons.Refresh, "Refresh", onRefresh)
             }
             if (profile.isMe) {
                 Spacer(Modifier.width(8.dp))
-                OverlayGlyph("⚙", onSettings)
+                OverlayIcon(LinkUpIcons.Settings, "Settings", onSettings)
             }
         }
 
@@ -319,9 +359,9 @@ private fun ProfileMetaRow(profile: Profile) {
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        location?.let { DetailChip("◎", it) }
-        website?.let { DetailChip("⚭", it, tint = LinkPurple) }
-        joined?.let { DetailChip("◷", it) }
+        location?.let { DetailChip(LinkUpIcons.Location, it) }
+        website?.let { DetailChip(LinkUpIcons.Link, it, tint = LinkPurple) }
+        joined?.let { DetailChip(LinkUpIcons.Calendar, it) }
     }
 }
 
@@ -330,12 +370,12 @@ private fun PrivateDetailsCard(profile: Profile) {
     ProfileCard {
         Text("Your details", fontWeight = FontWeight.Bold, fontSize = 15.sp)
         Spacer(Modifier.height(6.dp))
-        profile.email?.takeIf { it.isNotBlank() }?.let { DetailRow("✉", "Email", it) }
-        profile.phone?.takeIf { it.isNotBlank() }?.let { DetailRow("☎", "Phone", it) }
-        profile.location?.takeIf { it.isNotBlank() }?.let { DetailRow("◎", "Location", it) }
-        profile.website?.takeIf { it.isNotBlank() }?.let { DetailRow("⚭", "Website", it) }
+        profile.email?.takeIf { it.isNotBlank() }?.let { DetailRow(LinkUpIcons.Mail, "Email", it) }
+        profile.phone?.takeIf { it.isNotBlank() }?.let { DetailRow(LinkUpIcons.Phone, "Phone", it) }
+        profile.location?.takeIf { it.isNotBlank() }?.let { DetailRow(LinkUpIcons.Location, "Location", it) }
+        profile.website?.takeIf { it.isNotBlank() }?.let { DetailRow(LinkUpIcons.Link, "Website", it) }
         profile.birthdate?.takeIf { it.isNotBlank() }?.let { raw ->
-            formatBirthdate(raw)?.let { DetailRow("✦", "Birthday", it) }
+            formatBirthdate(raw)?.let { DetailRow(LinkUpIcons.Star, "Birthday", it) }
         }
         Spacer(Modifier.height(8.dp))
         Text("Only you can see this section.", color = LinkMuted, fontSize = 11.sp)
@@ -380,7 +420,7 @@ private fun ProfileActions(
                 modifier = Modifier.height(44.dp),
                 shape = RoundedCornerShape(10.dp)
             ) {
-                Text("⚙", fontSize = 16.sp)
+                Icon(LinkUpIcons.Settings, "Settings", modifier = Modifier.size(18.dp))
             }
         } else {
             // Friendship is the primary relationship, so it leads; following is
@@ -432,7 +472,7 @@ private fun TabPlaceholder(tab: String, isMe: Boolean, name: String) {
             Modifier.size(56.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text("◇", color = LinkPurple, fontSize = 22.sp)
+            Icon(LinkUpIcons.Diamond, null, tint = LinkPurple, modifier = Modifier.size(24.dp))
         }
         Spacer(Modifier.height(12.dp))
         Text("Nothing here yet", fontWeight = FontWeight.Bold, fontSize = 15.sp)
@@ -441,17 +481,18 @@ private fun TabPlaceholder(tab: String, isMe: Boolean, name: String) {
     }
 }
 
+/** Circular control floating on the cover photo, legible against any image. */
 @Composable
-private fun OverlayGlyph(glyph: String, onClick: () -> Unit, fontSize: TextUnit = 17.sp) {
+private fun OverlayIcon(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
     Box(
         Modifier
             .size(36.dp)
             .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.32f))
+            .background(Color.Black.copy(alpha = 0.34f))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(glyph, color = Color.White, fontSize = fontSize, fontWeight = FontWeight.Bold)
+        Icon(icon, contentDescription, tint = Color.White, modifier = Modifier.size(19.dp))
     }
 }
 
@@ -466,11 +507,11 @@ private fun InlineBanner(text: String, onDismiss: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text, color = Color(0xFFB3261E), fontSize = 13.sp, modifier = Modifier.weight(1f))
-        Text(
-            "✕",
-            color = Color(0xFFB3261E),
-            fontSize = 13.sp,
-            modifier = Modifier.clickable(onClick = onDismiss).padding(start = 8.dp)
+        Icon(
+            imageVector = LinkUpIcons.Close,
+            contentDescription = "Dismiss",
+            tint = Color(0xFFB3261E),
+            modifier = Modifier.clickable(onClick = onDismiss).padding(start = 8.dp).size(16.dp)
         )
     }
 }
@@ -478,6 +519,7 @@ private fun InlineBanner(text: String, onDismiss: () -> Unit) {
 /** Placeholder blocks matching the real layout, so loading does not shift content. */
 @Composable
 private fun ProfileSkeleton() {
+    val shimmer = rememberShimmerBrush()
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxWidth()) {
             Box(
@@ -485,7 +527,7 @@ private fun ProfileSkeleton() {
                     .fillMaxWidth()
                     .height(COVER_HEIGHT)
                     .padding(bottom = AVATAR_OVERHANG)
-                    .background(LinkDivider)
+                    .background(shimmer)
             )
             Box(
                 Modifier
@@ -496,31 +538,31 @@ private fun ProfileSkeleton() {
                     .background(Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                Box(Modifier.size(AVATAR_SIZE).clip(CircleShape).background(LinkDivider))
+                Box(Modifier.size(AVATAR_SIZE).clip(CircleShape).background(shimmer))
             }
         }
         Column(Modifier.padding(20.dp)) {
-            SkeletonBar(180.dp, 22.dp)
+            SkeletonBar(180.dp, 22.dp, shimmer)
             Spacer(Modifier.height(10.dp))
-            SkeletonBar(110.dp, 14.dp)
+            SkeletonBar(110.dp, 14.dp, shimmer)
             Spacer(Modifier.height(18.dp))
-            SkeletonBar(260.dp, 14.dp)
+            SkeletonBar(260.dp, 14.dp, shimmer)
             Spacer(Modifier.height(8.dp))
-            SkeletonBar(200.dp, 14.dp)
+            SkeletonBar(200.dp, 14.dp, shimmer)
             Spacer(Modifier.height(24.dp))
-            SkeletonBar(320.dp, 44.dp)
+            SkeletonBar(320.dp, 44.dp, shimmer)
         }
     }
 }
 
 @Composable
-private fun SkeletonBar(width: Dp, height: Dp) {
+private fun SkeletonBar(width: Dp, height: Dp, brush: Brush) {
     Box(
         Modifier
             .width(width)
             .height(height)
             .clip(RoundedCornerShape(6.dp))
-            .background(LinkDivider)
+            .background(brush)
     )
 }
 
@@ -535,12 +577,35 @@ private fun ProfileErrorState(message: String, onRetry: () -> Unit) {
             Modifier.size(64.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text("!", color = LinkPurple, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Icon(LinkUpIcons.Info, null, tint = LinkPurple, modifier = Modifier.size(28.dp))
         }
         Spacer(Modifier.height(16.dp))
         Text("Couldn't load this profile", fontWeight = FontWeight.Bold, fontSize = 17.sp)
         Spacer(Modifier.height(8.dp))
         Text(message, color = LinkMuted, fontSize = 13.sp, textAlign = TextAlign.Center)
+
+        // A missing account is almost always placeholder content rather than a
+        // failure: Feed and Reels still ship sample people with no real accounts
+        // behind them. Say so, and point at the screens that do open real profiles.
+        if (message.contains("not found", ignoreCase = true)) {
+            Spacer(Modifier.height(14.dp))
+            Text(
+                text = "Posts in Feed and Reels are still sample content, so their " +
+                    "authors aren't real accounts yet.",
+                color = LinkMuted,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Search, Friends, Chats and Notifications open real profiles.",
+                color = LinkPurple,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+        }
+
         Spacer(Modifier.height(20.dp))
         Button(
             onClick = onRetry,

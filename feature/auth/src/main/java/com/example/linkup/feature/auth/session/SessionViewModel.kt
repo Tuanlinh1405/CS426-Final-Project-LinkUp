@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.linkup.data.repository.AuthRepository
 import com.example.linkup.data.repository.ProfileRepository
+import com.example.linkup.data.model.AuthResult
+import com.example.linkup.data.model.AuthUser
+import com.example.linkup.data.network.AuthSession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,7 +59,21 @@ class SessionViewModel @Inject constructor(
                 return@launch
             }
             profileRepository.getMyProfile()
-                .onSuccess { _state.value = SessionState.SignedIn }
+                .onSuccess { profile ->
+                    AuthSession.set(
+                        AuthResult(
+                            user = AuthUser(
+                                id = profile.id,
+                                email = profile.email.orEmpty(),
+                                username = profile.username,
+                                fullName = profile.fullName,
+                                createdAt = profile.joinedAt,
+                            ),
+                            token = token,
+                        )
+                    )
+                    _state.value = SessionState.SignedIn
+                }
                 .onFailure {
                     authRepository.logout()
                     _state.value = SessionState.SignedOut

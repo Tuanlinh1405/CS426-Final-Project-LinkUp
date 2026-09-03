@@ -17,13 +17,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,6 +34,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.linkup.core.designsystem.component.FriendActionState
 import com.example.linkup.core.designsystem.theme.LinkDivider
 import com.example.linkup.core.designsystem.theme.LinkMuted
@@ -84,7 +88,7 @@ fun RemoteAvatar(
                 )
             } else {
                 AsyncImage(
-                    model = url,
+                    model = fadeInRequest(url),
                     contentDescription = "Profile photo",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -116,7 +120,7 @@ fun CoverPhoto(
             Box(Modifier.fillMaxSize().background(CoverFallbackBrush))
         } else {
             AsyncImage(
-                model = url,
+                model = fadeInRequest(url),
                 contentDescription = "Cover photo",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize().background(CoverFallbackBrush)
@@ -166,7 +170,7 @@ fun StatColumn(
 /** Small pill used for location, link and join date. */
 @Composable
 fun DetailChip(
-    glyph: String,
+    icon: ImageVector,
     text: String,
     modifier: Modifier = Modifier,
     tint: Color = LinkMuted,
@@ -179,7 +183,7 @@ fun DetailChip(
             .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(glyph, fontSize = 13.sp, color = tint)
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(6.dp))
         Text(
             text = text,
@@ -210,13 +214,13 @@ fun ProfileCard(
 
 /** A labelled line inside [ProfileCard]. */
 @Composable
-fun DetailRow(glyph: String, label: String, value: String) {
+fun DetailRow(icon: ImageVector, label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier.size(34.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text(glyph, color = LinkPurple, fontSize = 15.sp)
+            Icon(icon, contentDescription = null, tint = LinkPurple, modifier = Modifier.size(16.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -317,3 +321,16 @@ fun FriendshipStatus.friendActionState(): FriendActionState = when (this) {
     FriendshipStatus.REQUEST_RECEIVED -> FriendActionState.RESPOND
     FriendshipStatus.NONE, FriendshipStatus.UNKNOWN -> FriendActionState.ADD
 }
+
+/**
+ * Wraps a URL so Coil fades the decoded image in.
+ *
+ * Without this an avatar snaps from placeholder to photo the instant it decodes,
+ * which reads as a flicker while a list scrolls.
+ */
+@Composable
+internal fun fadeInRequest(url: String?): ImageRequest =
+    ImageRequest.Builder(LocalContext.current)
+        .data(url)
+        .crossfade(true)
+        .build()

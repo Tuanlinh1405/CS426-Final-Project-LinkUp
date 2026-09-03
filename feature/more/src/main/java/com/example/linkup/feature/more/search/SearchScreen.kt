@@ -21,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,11 +34,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
+import com.example.linkup.core.designsystem.component.AnimatedBanner
 import com.example.linkup.core.designsystem.component.ChoiceChip
 import com.example.linkup.core.designsystem.component.LinkUpField
 import com.example.linkup.core.designsystem.component.FriendActionState
@@ -90,25 +94,11 @@ fun SearchScreen(
             }
         }
 
-        state.message?.let { message ->
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFFFDECEF))
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(message, color = Color(0xFFB3261E), fontSize = 13.sp, modifier = Modifier.weight(1f))
-                Text(
-                    "✕",
-                    color = Color(0xFFB3261E),
-                    fontSize = 13.sp,
-                    modifier = Modifier.clickable(onClick = viewModel::consumeMessage).padding(start = 8.dp)
-                )
-            }
-        }
+        AnimatedBanner(
+            message = state.message,
+            isError = true,
+            onDismiss = viewModel::consumeMessage
+        )
 
         Spacer(Modifier.height(8.dp))
 
@@ -128,6 +118,7 @@ fun SearchScreen(
 
             else -> LazyColumn(Modifier.fillMaxSize()) {
                 items(state.results, key = { it.id }) { person ->
+                    Column(Modifier.animateItem()) {
                     PersonRow(
                         displayName = person.displayName,
                         handle = person.handle,
@@ -153,6 +144,7 @@ fun SearchScreen(
                         }
                     )
                     HorizontalDivider(color = LinkDivider.copy(alpha = 0.6f))
+                    }
                 }
 
                 if (state.hasMore) {
@@ -180,7 +172,7 @@ fun SearchScreen(
 @Composable
 private fun SearchPrompt() {
     CenteredState(
-        glyph = "⌕",
+        icon = LinkUpIcons.Search,
         title = "Find people on LinkUp",
         body = "Search by name or username, then follow anyone you want to keep up with."
     )
@@ -189,7 +181,7 @@ private fun SearchPrompt() {
 @Composable
 private fun NoMatchesState(query: String) {
     CenteredState(
-        glyph = "○",
+        icon = LinkUpIcons.Info,
         title = "No one found",
         body = "Nobody matches \"$query\". Check the spelling, or try their username instead."
     )
@@ -198,7 +190,7 @@ private fun NoMatchesState(query: String) {
 @Composable
 private fun NotYetState(tab: String) {
     CenteredState(
-        glyph = "◇",
+        icon = LinkUpIcons.Diamond,
         title = "$tab search is coming",
         body = "People search is live. $tab results arrive with the feed and reels APIs."
     )
@@ -215,7 +207,7 @@ private fun SearchErrorState(message: String, onRetry: () -> Unit) {
             Modifier.size(64.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text("!", color = LinkPurple, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Icon(LinkUpIcons.Info, null, tint = LinkPurple, modifier = Modifier.size(28.dp))
         }
         Spacer(Modifier.height(16.dp))
         Text("Search failed", fontWeight = FontWeight.Bold, fontSize = 17.sp)
@@ -233,7 +225,7 @@ private fun SearchErrorState(message: String, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun CenteredState(glyph: String, title: String, body: String) {
+private fun CenteredState(icon: ImageVector, title: String, body: String) {
     Column(
         Modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.Center,
@@ -243,7 +235,7 @@ private fun CenteredState(glyph: String, title: String, body: String) {
             Modifier.size(68.dp).clip(CircleShape).background(LinkPurpleSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text(glyph, color = LinkPurple, fontSize = 28.sp)
+            Icon(icon, null, tint = LinkPurple, modifier = Modifier.size(30.dp))
         }
         Spacer(Modifier.height(16.dp))
         Text(title, fontWeight = FontWeight.Bold, fontSize = 17.sp)
