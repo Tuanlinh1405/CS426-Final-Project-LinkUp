@@ -5,7 +5,8 @@ data class User(
     val name: String,
     val username: String,
     val initials: String,
-    val bio: String = ""
+    val bio: String = "",
+    val avatarUrl: String? = null
 )
 
 data class Post(
@@ -39,7 +40,11 @@ data class Conversation(
     val lastMessage: Message? = null,
     val unreadCount: Int = unread,
     val updatedAt: String = time,
-)
+    /** Everyone but the signed-in user; drives the title and the group avatar stack. */
+    val others: List<Participant> = emptyList(),
+) {
+    val isGroup: Boolean get() = type == "GROUP"
+}
 
 data class NotificationItem(
     val id: String,

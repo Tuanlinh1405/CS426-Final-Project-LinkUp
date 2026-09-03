@@ -157,6 +157,10 @@ object MessagesTable : UUIDTable("messages") {
     val type = varchar("type", 20).default("TEXT")
     val textContent = text("text_content").nullable()
     val mediaId = reference("media_id", MediaTable, onDelete = ReferenceOption.SET_NULL).nullable()
+    // The public URL of an attachment, resolved at upload time. MediaTable only stores a
+    // storage key, so reading through mediaId would cost a join plus a URL rebuild on
+    // every message fetch.
+    val mediaUrl = text("media_url").nullable()
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
 }
 

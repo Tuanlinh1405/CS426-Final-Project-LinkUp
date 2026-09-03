@@ -13,6 +13,7 @@ import com.linkup.model.MessageResponse
 import com.linkup.model.ParticipantDto
 import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
 import java.sql.ResultSet
@@ -81,7 +82,7 @@ class ChatRepository {
                     senderName = rs.getString("lm_sender_name"),
                     type = rs.getString("lm_type"),
                     textContent = rs.getString("lm_text"),
-                    mediaUrl = null,
+                    mediaUrl = rs.getString("lm_media_url"),
                     status = rs.getString("lm_status") ?: "SENT",
                     createdAt = rs.isoTimestamp("lm_created_at")
                 ),
@@ -220,6 +221,7 @@ class ChatRepository {
             val senderName = row[UsersTable.fullName] ?: row[UsersTable.username]
             val type = row[MessagesTable.type]
             val textContent = row[MessagesTable.textContent]
+            val mediaUrl = row[MessagesTable.mediaUrl]
             val createdAt = row[MessagesTable.createdAt].toString()
 
             val status = calculateMessageStatusBulk(senderId, currentUserId, receiptsByMessage[msgId] ?: emptyList())
@@ -231,7 +233,7 @@ class ChatRepository {
                 senderName = senderName,
                 type = type,
                 textContent = textContent,
-                mediaUrl = null,
+                mediaUrl = mediaUrl,
                 status = status,
                 createdAt = createdAt
             )
@@ -251,6 +253,7 @@ class ChatRepository {
             it[this.senderId] = senderId
             it[this.type] = type
             it[this.textContent] = textContent
+            it[this.mediaUrl] = mediaUrl
             it[createdAt] = now
         }.value
 
@@ -308,6 +311,32 @@ class ChatRepository {
         updated > 0
     }
 
+    /**
+     * One UPDATE statement marks every recipient's receipt for a message DELIVERED, so
+     * delivery notifications never cost one round trip per online recipient.
+     */
+    suspend fun markDeliveredForRecipients(messageId: UUID, userIds: List<UUID>): Int = dbQuery {
+        if (userIds.isEmpty()) return@dbQuery 0
+        val now = Clock.System.now()
+        MessageReceiptsTable.update({
+            (MessageReceiptsTable.messageId eq messageId) and
+            (MessageReceiptsTable.userId inList userIds)
+        }) {
+            it[status] = "DELIVERED"
+            it[deliveredAt] = now
+        }
+    }
+
+    suspend fun isConversationMember(conversationId: UUID, userId: UUID): Boolean = dbQuery {
+        ConversationMembersTable
+            .select(ConversationMembersTable.userId)
+            .where {
+                (ConversationMembersTable.conversationId eq conversationId) and
+                (ConversationMembersTable.userId eq userId)
+            }
+            .count() > 0
+    }
+
     suspend fun markConversationAsRead(conversationId: UUID, userId: UUID): List<UUID> = dbQuery {
         val now = Clock.System.now()
 
@@ -347,6 +376,45 @@ class ChatRepository {
             .map { it[ConversationMembersTable.userId].value }
     }
 
+    /**
+     * Everyone who shares at least one conversation with [userId], in one round trip.
+     *
+     * Presence broadcasts fan out to exactly this set. Walking conversations first and then
+     * asking for each one's members would cost ~170ms per conversation against the pooler.
+     */
+    suspend fun getPeerUserIds(userId: UUID): List<UUID> = rawRead { conn ->
+        conn.prepareStatement(PEER_IDS_SQL).use { ps ->
+            ps.setObject(1, userId)
+            ps.setObject(2, userId)
+            ps.executeQuery().use { rs ->
+                val ids = mutableListOf<UUID>()
+                while (rs.next()) ids += rs.getObject("user_id", UUID::class.java)
+                ids
+            }
+        }
+    }
+
+    /**
+     * Removes a message the caller sent. Returns false when it does not exist, belongs to
+     * another sender, or is in another conversation — the caller answers 403/404 from that.
+     *
+     * Receipts disappear with it through the CASCADE on `message_receipts.message_id`.
+     */
+    suspend fun deleteMessage(conversationId: UUID, messageId: UUID, senderId: UUID): Boolean = dbQuery {
+        val deleted = MessagesTable.deleteWhere {
+            (MessagesTable.id eq messageId) and
+            (MessagesTable.conversationId eq conversationId) and
+            (MessagesTable.senderId eq senderId)
+        }
+        if (deleted > 0) {
+            // The list is ordered by updatedAt, and the row's preview just changed.
+            ConversationsTable.update({ ConversationsTable.id eq conversationId }) {
+                it[updatedAt] = Clock.System.now()
+            }
+        }
+        deleted > 0
+    }
+
     suspend fun getPendingMessagesForUser(userId: UUID): List<Pair<UUID, MessageResponse>> = dbQuery {
         (MessageReceiptsTable innerJoin MessagesTable)
             .join(UsersTable, JoinType.INNER, onColumn = MessagesTable.senderId, otherColumn = UsersTable.id)
@@ -367,7 +435,7 @@ class ChatRepository {
                     senderName = row[UsersTable.fullName] ?: row[UsersTable.username],
                     type = row[MessagesTable.type],
                     textContent = row[MessagesTable.textContent],
-                    mediaUrl = null,
+                    mediaUrl = row[MessagesTable.mediaUrl],
                     status = "DELIVERED",
                     createdAt = row[MessagesTable.createdAt].toString()
                 )
@@ -403,6 +471,7 @@ class ChatRepository {
         val senderName = lastMsgRow[UsersTable.fullName] ?: lastMsgRow[UsersTable.username]
         val type = lastMsgRow[MessagesTable.type]
         val textContent = lastMsgRow[MessagesTable.textContent]
+        val mediaUrl = lastMsgRow[MessagesTable.mediaUrl]
         val createdAt = lastMsgRow[MessagesTable.createdAt].toString()
 
         val status = calculateMessageStatusInternal(msgId, senderId, currentUserId)
@@ -414,7 +483,7 @@ class ChatRepository {
             senderName = senderName,
             type = type,
             textContent = textContent,
-            mediaUrl = null,
+            mediaUrl = mediaUrl,
             status = status,
             createdAt = createdAt
         )
@@ -472,12 +541,23 @@ class ChatRepository {
     }
 }
 
+/** Distinct users sharing a conversation with the given user (parameter bound twice). */
+private val PEER_IDS_SQL: String = """
+    SELECT DISTINCT cm.user_id AS user_id
+      FROM conversation_members cm
+     WHERE cm.conversation_id IN (
+               SELECT conversation_id FROM conversation_members WHERE user_id = ?
+           )
+       AND cm.user_id <> ?
+""".trimIndent()
+
 /** One statement that returns the full conversation list (participants + last message + unread). */
 private val CONVERSATION_LIST_SQL: String = """
     SELECT c.id AS conv_id, c.type AS conv_type, c.name AS conv_name, c.updated_at AS conv_updated_at,
            u.id AS p_id, u.username AS p_username, u.full_name AS p_full_name, pr.avatar_url AS p_avatar,
            lm.id AS lm_id, lm.sender_id AS lm_sender_id, lm.sender_name AS lm_sender_name,
-           lm.type AS lm_type, lm.text_content AS lm_text, lm.created_at AS lm_created_at,
+           lm.type AS lm_type, lm.text_content AS lm_text, lm.media_url AS lm_media_url,
+           lm.created_at AS lm_created_at,
            lm.self_status AS lm_status,
            (SELECT count(*) FROM message_receipts mr2
               JOIN messages m2 ON m2.id = mr2.message_id
@@ -488,7 +568,7 @@ private val CONVERSATION_LIST_SQL: String = """
       JOIN users u ON u.id = cm.user_id
       LEFT JOIN profiles pr ON pr.user_id = u.id
       LEFT JOIN LATERAL (
-          SELECT m.id, m.sender_id, m.type, m.text_content, m.created_at,
+          SELECT m.id, m.sender_id, m.type, m.text_content, m.media_url, m.created_at,
                  COALESCE(su.full_name, su.username) AS sender_name,
                  CASE WHEN m.sender_id = ? THEN (
                              SELECT CASE

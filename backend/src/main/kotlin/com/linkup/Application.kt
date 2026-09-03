@@ -82,7 +82,7 @@ fun Application.module() {
         staticFiles("/media", File(EnvConfig.MEDIA_ROOT))
 
         authRoutes(userRepository)
-        chatRoutes(chatRepository, wsManager, userRepository)
+        chatRoutes(chatRepository, wsManager, userRepository, mediaStorage)
         profileRoutes(profileRepository, mediaStorage)
         notificationRoutes(notificationRepository)
         userRoutes(profileRepository)

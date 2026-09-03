@@ -59,6 +59,17 @@ data class MarkReadRequest(
     val messageId: String? = null
 )
 
+/**
+ * Who in a conversation has a live WebSocket right now.
+ *
+ * The PRESENCE frames only announce transitions, so a client that opens a thread needs
+ * this to know the current state.
+ */
+@Serializable
+data class PresenceResponse(
+    val onlineUserIds: List<String> = emptyList()
+)
+
 @Serializable
 data class WebSocketFrame(
     val event: String,

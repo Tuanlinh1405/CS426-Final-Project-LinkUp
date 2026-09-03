@@ -71,3 +71,9 @@ data class MarkReadRequest(
     val conversationId: String,
     val messageId: String? = null,
 )
+
+/** Members of a conversation with a live socket. PRESENCE frames only carry transitions. */
+@Serializable
+data class PresenceResponseDto(
+    val onlineUserIds: List<String> = emptyList(),
+)

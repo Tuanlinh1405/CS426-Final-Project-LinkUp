@@ -1,5 +1,7 @@
 package com.example.linkup.data.model
 
+import com.example.linkup.data.util.ChatTime
+
 data class Message(
     val id: String,
     val conversationId: String,
@@ -17,15 +19,8 @@ data class Message(
             id = id,
             text = textContent ?: "",
             fromMe = fromMe,
-            time = formatTime(createdAt),
+            time = ChatTime.clock(createdAt),
             status = status.name
         )
-    }
-
-    private fun formatTime(rawIso: String): String {
-        if (rawIso.length >= 16 && rawIso.contains("T")) {
-            return rawIso.substringAfter("T").take(5)
-        }
-        return rawIso.ifEmpty { "Now" }
     }
 }
