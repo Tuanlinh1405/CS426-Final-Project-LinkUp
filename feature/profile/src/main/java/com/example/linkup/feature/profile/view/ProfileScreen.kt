@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.linkup.core.designsystem.component.FriendControls
+import com.example.linkup.core.designsystem.component.ScreenHeader
 import com.example.linkup.core.designsystem.theme.LinkDivider
 import com.example.linkup.core.designsystem.theme.LinkMuted
 import com.example.linkup.core.designsystem.theme.LinkPurple
@@ -91,12 +92,21 @@ fun ProfileScreen(
 
     Box(modifier.fillMaxSize()) {
         when (val state = uiState) {
-            is ProfileUiState.Loading -> ProfileSkeleton()
+            // The skeleton and the error page keep a visible way back: without the
+            // header, a profile that fails to load strands the user on a dead screen
+            // with nothing but the system gesture to escape it.
+            is ProfileUiState.Loading -> Column(Modifier.fillMaxSize()) {
+                if (onBack != null) ScreenHeader(title = "Profile", onBack = onBack)
+                ProfileSkeleton()
+            }
 
-            is ProfileUiState.Error -> ProfileErrorState(
-                message = state.message,
-                onRetry = { viewModel.load(userId, force = true) }
-            )
+            is ProfileUiState.Error -> Column(Modifier.fillMaxSize()) {
+                if (onBack != null) ScreenHeader(title = "Profile", onBack = onBack)
+                ProfileErrorState(
+                    message = state.message,
+                    onRetry = { viewModel.load(userId, force = true) }
+                )
+            }
 
             is ProfileUiState.Ready -> ProfileContent(
                 state = state,
@@ -541,6 +551,29 @@ private fun ProfileErrorState(message: String, onRetry: () -> Unit) {
         Text("Couldn't load this profile", fontWeight = FontWeight.Bold, fontSize = 17.sp)
         Spacer(Modifier.height(8.dp))
         Text(message, color = LinkMuted, fontSize = 13.sp, textAlign = TextAlign.Center)
+
+        // A missing account is almost always placeholder content rather than a
+        // failure: Feed and Reels still ship sample people with no real accounts
+        // behind them. Say so, and point at the screens that do open real profiles.
+        if (message.contains("not found", ignoreCase = true)) {
+            Spacer(Modifier.height(14.dp))
+            Text(
+                text = "Posts in Feed and Reels are still sample content, so their " +
+                    "authors aren't real accounts yet.",
+                color = LinkMuted,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Search, Friends, Chats and Notifications open real profiles.",
+                color = LinkPurple,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+        }
+
         Spacer(Modifier.height(20.dp))
         Button(
             onClick = onRetry,

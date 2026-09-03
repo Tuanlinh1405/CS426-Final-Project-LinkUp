@@ -60,6 +60,7 @@ import com.example.linkup.data.model.MessageStatus
 @Composable
 fun ChatListRoute(
     onOpenChat: (Conversation) -> Unit,
+    onOpenProfile: ((String) -> Unit)? = null,
     viewModel: ChatListViewModel = hiltViewModel(),
 ) {
     val conversations by viewModel.conversations.collectAsState()
@@ -76,7 +77,8 @@ fun ChatListRoute(
                 onOpenChat(newConv)
             }
         },
-        onOpenChat = onOpenChat
+        onOpenChat = onOpenChat,
+        onOpenProfile = onOpenProfile
     )
 }
 
@@ -85,6 +87,8 @@ fun ChatDetailRoute(
     conversationId: String,
     title: String = "Chat",
     onBack: () -> Unit,
+    peerUserId: String? = null,
+    onOpenProfile: ((String) -> Unit)? = null,
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(conversationId) {
@@ -100,7 +104,12 @@ fun ChatDetailRoute(
         isPeerTyping = isPeerTyping,
         onBack = onBack,
         onSend = { text -> viewModel.sendMessage(text) },
-        onTyping = { isTyping -> viewModel.sendTyping(isTyping) }
+        onTyping = { isTyping -> viewModel.sendTyping(isTyping) },
+        onOpenProfile = if (peerUserId != null && onOpenProfile != null) {
+            { onOpenProfile(peerUserId) }
+        } else {
+            null
+        }
     )
 }
 
@@ -112,6 +121,8 @@ fun ChatListScreen(
     onSearchQueryChange: ((String) -> Unit)? = null,
     onCreateChat: ((String) -> Unit)? = null,
     onOpenChat: (Conversation) -> Unit,
+    /** Opens the other person's profile. Null leaves avatars inert. */
+    onOpenProfile: ((String) -> Unit)? = null,
 ) {
     var localQuery by remember { mutableStateOf("") }
     var showNewChatDialog by remember { mutableStateOf(false) }
@@ -237,7 +248,22 @@ fun ChatListScreen(
                         Modifier.fillMaxWidth().clickable { onOpenChat(conversation) }.padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Avatar(conversation.user.initials, 48)
+                        // Tapping the avatar opens the person; tapping the row opens
+                        // the chat. Group chats have no single person to open.
+                        val peerId = conversation.user.id.takeIf {
+                            onOpenProfile != null && conversation.type != "GROUP"
+                        }
+                        Box(
+                            Modifier.then(
+                                if (peerId != null) {
+                                    Modifier.clickable { onOpenProfile?.invoke(peerId) }
+                                } else {
+                                    Modifier
+                                }
+                            )
+                        ) {
+                            Avatar(conversation.user.initials, 48)
+                        }
                         Column(Modifier.weight(1f).padding(start = 12.dp)) {
                             Text(conversation.user.name, fontWeight = FontWeight.Bold)
                             Text(
@@ -268,12 +294,14 @@ fun ChatListScreen(
 
 @Composable
 fun ChatDetailScreen(
-    title: String = "Alex Chen · online",
+    title: String = "Chat",
     messages: List<Message>,
     isPeerTyping: Boolean = false,
     onBack: () -> Unit,
     onSend: (String) -> Unit,
     onTyping: ((Boolean) -> Unit)? = null,
+    /** Opens the person you are talking to, from the header title. */
+    onOpenProfile: (() -> Unit)? = null,
 ) {
     var draft by remember { mutableStateOf("") }
     val messageListState = rememberLazyListState()
@@ -292,7 +320,7 @@ fun ChatDetailScreen(
     val headerTitle = if (isPeerTyping) "$title (typing...)" else title
 
     Column(Modifier.fillMaxSize().background(LinkCanvas).imePadding()) {
-        ScreenHeader(headerTitle, onBack, action = "•••")
+        ScreenHeader(headerTitle, onBack, action = "•••", onTitleClick = onOpenProfile)
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
             state = messageListState,
@@ -309,7 +337,7 @@ fun ChatDetailScreen(
                 )
             }
             items(messages, key = { it.id }) { message ->
-                DomainMessageBubble(message)
+                DomainMessageBubble(message, onOpenProfile)
             }
         }
         Row(
@@ -351,7 +379,7 @@ fun ChatDetailScreen(
         )
     }
     ChatDetailScreen(
-        title = "Alex Chen · online",
+        title = "Chat",
         messages = domainMessages,
         isPeerTyping = false,
         onBack = onBack,
@@ -360,12 +388,21 @@ fun ChatDetailScreen(
 }
 
 @Composable
-private fun DomainMessageBubble(message: Message) {
+private fun DomainMessageBubble(message: Message, onOpenProfile: (() -> Unit)? = null) {
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = if (message.fromMe) Arrangement.End else Arrangement.Start
     ) {
-        if (!message.fromMe) Avatar("AC", 30)
+        // The avatar beside an incoming message opens the person who sent it.
+        if (!message.fromMe) {
+            Box(
+                Modifier.then(
+                    if (onOpenProfile != null) Modifier.clickable(onClick = onOpenProfile) else Modifier
+                )
+            ) {
+                Avatar("AC", 30)
+            }
+        }
         Column(
             Modifier.padding(horizontal = 7.dp).widthIn(max = 280.dp).clip(
                 RoundedCornerShape(

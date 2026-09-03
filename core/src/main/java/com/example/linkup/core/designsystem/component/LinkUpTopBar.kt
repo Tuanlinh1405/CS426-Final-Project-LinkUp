@@ -33,7 +33,9 @@ fun ScreenHeader(
     title: String,
     onBack: (() -> Unit)? = null,
     action: String? = null,
-    onAction: () -> Unit = {}
+    onAction: () -> Unit = {},
+    /** When set, the title becomes tappable — used to open a chat peer's profile. */
+    onTitleClick: (() -> Unit)? = null
 ) {
     Surface(shadowElevation = 1.dp) {
         Column {
@@ -44,7 +46,20 @@ fun ScreenHeader(
                 if (onBack != null) {
                     Text("‹", fontSize = 34.sp, modifier = Modifier.clickable(onClick = onBack).padding(end = 12.dp))
                 }
-                Text(title, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.weight(1f))
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    modifier = Modifier
+                        .weight(1f)
+                        .then(
+                            if (onTitleClick != null) {
+                                Modifier.clickable(onClick = onTitleClick)
+                            } else {
+                                Modifier
+                            }
+                        )
+                )
                 if (action != null) {
                     Text(action, color = LinkPurple, fontWeight = FontWeight.Bold, modifier = Modifier.clickable(onClick = onAction))
                 }

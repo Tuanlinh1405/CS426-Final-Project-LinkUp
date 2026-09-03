@@ -66,7 +66,9 @@ fun FeedScreen(
     onAi: () -> Unit,
     unreadNotifications: Int = 0,
     onFriends: (() -> Unit)? = null,
-    pendingFriendRequests: Int = 0
+    pendingFriendRequests: Int = 0,
+    /** Opens a post author's profile. Null leaves author rows inert. */
+    onOpenAuthor: ((String) -> Unit)? = null
 ) {
     Column(Modifier.fillMaxSize().background(LinkCanvas)) {
         LinkUpTopBar(
@@ -93,7 +95,12 @@ fun FeedScreen(
                 Spacer(Modifier.height(8.dp))
             }
             items(posts, key = { it.id }) { post ->
-                PostCard(post, onOpen = { onOpenPost(post) }, onLike = { onLike(post.id) })
+                PostCard(
+                    post = post,
+                    onOpen = { onOpenPost(post) },
+                    onLike = { onLike(post.id) },
+                    onOpenAuthor = onOpenAuthor?.let { open -> { open(post.author.id) } }
+                )
                 Spacer(Modifier.height(8.dp))
             }
         }
@@ -101,9 +108,21 @@ fun FeedScreen(
 }
 
 @Composable
-fun PostCard(post: Post, onOpen: () -> Unit, onLike: () -> Unit) {
+fun PostCard(
+    post: Post,
+    onOpen: () -> Unit,
+    onLike: () -> Unit,
+    onOpenAuthor: (() -> Unit)? = null
+) {
     Column(Modifier.fillMaxWidth().background(Color.White)) {
-        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Tapping the author opens their profile — the gesture every social app has.
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .then(if (onOpenAuthor != null) Modifier.clickable(onClick = onOpenAuthor) else Modifier)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Avatar(post.author.initials)
             Column(Modifier.weight(1f).padding(start = 10.dp)) {
                 Text(post.author.name, fontWeight = FontWeight.Bold)
@@ -172,7 +191,12 @@ fun CreatePostScreen(me: User, onBack: () -> Unit, onPublish: (String) -> Unit) 
 }
 
 @Composable
-fun PostDetailScreen(post: Post?, onBack: () -> Unit, onLike: (String) -> Unit) {
+fun PostDetailScreen(
+    post: Post?,
+    onBack: () -> Unit,
+    onLike: (String) -> Unit,
+    onOpenAuthor: ((String) -> Unit)? = null
+) {
     var comment by remember { mutableStateOf("") }
     var comments by remember { mutableStateOf(listOf(ChatMessage("comment1", "This looks fantastic!", false, "1h"))) }
     val commentScrollState = rememberScrollState()
@@ -184,7 +208,12 @@ fun PostDetailScreen(post: Post?, onBack: () -> Unit, onLike: (String) -> Unit) 
         ScreenHeader("Post", onBack)
         if (post != null) {
             Column(Modifier.weight(1f).verticalScroll(commentScrollState)) {
-                PostCard(post, {}, { onLike(post.id) })
+                PostCard(
+                    post = post,
+                    onOpen = {},
+                    onLike = { onLike(post.id) },
+                    onOpenAuthor = onOpenAuthor?.let { open -> { open(post.author.id) } }
+                )
                 Text("Comments", fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
                 comments.forEach { item ->
                     Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {

@@ -161,12 +161,18 @@ fun LinkUpApp() {
                     onAi = { goTo(AppRoute.AI_CHAT) },
                     unreadNotifications = notificationsState.unreadCount,
                     onFriends = { goTo(AppRoute.FRIENDS) },
-                    pendingFriendRequests = friendsState.requestCount
+                    pendingFriendRequests = friendsState.requestCount,
+                    onOpenAuthor = { id -> goTo(AppRoute.PROFILE, id) }
                 )
                 AppRoute.CREATE_POST -> CreatePostScreen(repository.currentUser(), ::back) { content ->
                     repository.createPost(content); posts = repository.feed(); reset(AppRoute.FEED)
                 }
-                AppRoute.POST_DETAIL -> PostDetailScreen(selectedPost, ::back) { posts = repository.toggleLike(it) }
+                AppRoute.POST_DETAIL -> PostDetailScreen(
+                    post = selectedPost,
+                    onBack = ::back,
+                    onLike = { posts = repository.toggleLike(it) },
+                    onOpenAuthor = { id -> goTo(AppRoute.PROFILE, id) }
+                )
                 AppRoute.REELS -> ReelsScreen({ goTo(AppRoute.UPLOAD_REEL) }, { reset(AppRoute.PROFILE) })
                 AppRoute.UPLOAD_REEL -> UploadReelScreen(repository.currentUser(), ::back) { reset(AppRoute.REELS) }
                 AppRoute.PROFILE -> ProfileScreen(
@@ -213,12 +219,18 @@ fun LinkUpApp() {
                     onOpenChat = { conv ->
                         selectedConversation = conv
                         goTo(AppRoute.CHAT_DETAIL)
-                    }
+                    },
+                    onOpenProfile = { id -> goTo(AppRoute.PROFILE, id) }
                 )
                 AppRoute.CHAT_DETAIL -> ChatDetailRoute(
                     conversationId = selectedConversation?.id ?: "c1",
                     title = selectedConversation?.user?.name ?: "Chat",
-                    onBack = ::back
+                    onBack = ::back,
+                    // Group chats have no single person behind the title.
+                    peerUserId = selectedConversation
+                        ?.takeIf { it.type != "GROUP" }
+                        ?.user?.id,
+                    onOpenProfile = { id -> goTo(AppRoute.PROFILE, id) }
                 )
                 AppRoute.AI_CHAT -> AiChatScreen(::back) { goTo(AppRoute.AI_CONVERSATIONS) }
                 AppRoute.AI_CONVERSATIONS -> AiConversationsScreen(::back) { replace(AppRoute.AI_CHAT) }
