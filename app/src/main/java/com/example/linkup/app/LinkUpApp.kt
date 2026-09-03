@@ -2,12 +2,15 @@ package com.example.linkup.app
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -28,7 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.linkup.core.designsystem.component.LinkUpBottomBar
+import com.example.linkup.core.designsystem.component.LinkUpTopNavigationBar
 import com.example.linkup.core.navigation.AppNavigator
 import com.example.linkup.core.navigation.AppRoute
 import com.example.linkup.core.navigation.NavDirection
@@ -73,7 +76,7 @@ import com.example.linkup.feature.reels.UploadReelScreen
 import com.example.linkup.feature.reels.warmStartupReels
 import kotlinx.coroutines.delay
 
-private val bottomDestinations = setOf(
+private val primaryDestinations = setOf(
     AppRoute.FEED, AppRoute.REELS, AppRoute.DATING_DISCOVER, AppRoute.CHAT_LIST, AppRoute.PROFILE
 )
 
@@ -108,6 +111,7 @@ fun LinkUpApp() {
     var selectedPost by remember { mutableStateOf<FeedPost?>(null) }
     var selectedReelId by remember { mutableStateOf<String?>(null) }
     var selectedConversation by remember { mutableStateOf<Conversation?>(null) }
+    var primaryNavigationVisible by remember { mutableStateOf(true) }
 
     var navDirection by remember { mutableStateOf(navigator.direction) }
     fun sync() {
@@ -142,6 +146,7 @@ fun LinkUpApp() {
 
     // Keep the badge honest whenever the user lands somewhere that shows it.
     LaunchedEffect(current) {
+        primaryNavigationVisible = true
         if (current == AppRoute.FEED) {
             notificationsViewModel.refreshUnreadCount()
             friendsViewModel.refreshCounts()
@@ -157,10 +162,21 @@ fun LinkUpApp() {
             else -> Color(0xFFF8F7FB)
         },
         contentWindowInsets = WindowInsets.safeDrawing,
-        bottomBar = {
-            if (current in bottomDestinations) {
-                // Bottom-nav Profile always means "mine", so it resets the argument.
-                LinkUpBottomBar(current) { destination ->
+        topBar = {
+            AnimatedVisibility(
+                visible = current in primaryDestinations && primaryNavigationVisible,
+                enter = slideInVertically(
+                    animationSpec = tween(PRIMARY_NAV_ANIMATION_MS),
+                    initialOffsetY = { -it },
+                ) + fadeIn(tween(PRIMARY_NAV_ANIMATION_MS)),
+                exit = slideOutVertically(
+                    animationSpec = tween(PRIMARY_NAV_ANIMATION_MS),
+                    targetOffsetY = { -it },
+                ) + fadeOut(tween(PRIMARY_NAV_ANIMATION_MS)),
+            ) {
+                // The Profile tab always means "mine", so it resets any profile argument.
+                LinkUpTopNavigationBar(current) { destination ->
+                    primaryNavigationVisible = true
                     if (destination != current || currentArg != null) {
                         if (destination == AppRoute.REELS) selectedReelId = null
                         reset(destination)
@@ -225,7 +241,8 @@ fun LinkUpApp() {
                     unreadNotifications = notificationsState.unreadCount,
                     onFriends = { goTo(AppRoute.FRIENDS) },
                     pendingFriendRequests = friendsState.requestCount,
-                    onOpenAuthor = { id -> goTo(AppRoute.PROFILE, id) }
+                    onOpenAuthor = { id -> goTo(AppRoute.PROFILE, id) },
+                    onNavigationVisibilityChanged = { primaryNavigationVisible = it },
                 )
                 AppRoute.CREATE_POST -> CreatePostScreen(authSession?.user, postRepository, ::back) { reset(AppRoute.FEED) }
                 AppRoute.POST_DETAIL -> PostDetailScreen(
@@ -243,6 +260,7 @@ fun LinkUpApp() {
                     onUpload = { goTo(AppRoute.UPLOAD_REEL) },
                     onSignIn = { sessionViewModel.logout(); reset(AppRoute.LOGIN) },
                     initialReelId = selectedReelId,
+                    onNavigationVisibilityChanged = { primaryNavigationVisible = it },
                 )
                 AppRoute.UPLOAD_REEL -> UploadReelScreen(authSession?.user, reelsRepository, ::back) {
                     selectedReelId = null
@@ -340,3 +358,4 @@ private data class Screen(val route: AppRoute, val arg: String?)
 
 private const val SCREEN_SLIDE_MS = 280
 private const val SCREEN_FADE_MS = 200
+private const val PRIMARY_NAV_ANIMATION_MS = 180

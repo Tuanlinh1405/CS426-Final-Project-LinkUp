@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,6 +35,7 @@ import com.example.linkup.core.designsystem.component.LinkUpField
 import com.example.linkup.core.designsystem.component.LinkUpTopBar
 import com.example.linkup.core.designsystem.component.PrimaryButton
 import com.example.linkup.core.designsystem.component.ScreenHeader
+import com.example.linkup.core.designsystem.component.rememberNavigationVisibilityScrollConnection
 import com.example.linkup.data.feed.*
 import com.example.linkup.data.model.UserResponse
 import com.example.linkup.data.network.ApiClient
@@ -62,11 +64,15 @@ fun FeedScreen(
     onFriends: (() -> Unit)? = null,
     pendingFriendRequests: Int = 0,
     onOpenAuthor: (String) -> Unit = {},
+    onNavigationVisibilityChanged: (Boolean) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val posts = remember { mutableStateListOf<FeedPost>() }
     val listState = rememberLazyListState()
+    val navigationScrollConnection = rememberNavigationVisibilityScrollConnection(
+        onVisibilityChanged = onNavigationVisibilityChanged,
+    )
     var nextCursor by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var loadingMore by remember { mutableStateOf(false) }
@@ -150,7 +156,10 @@ fun FeedScreen(
             }
             return@Column
         }
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize().nestedScroll(navigationScrollConnection),
+        ) {
             item {
                 Row(Modifier.fillMaxWidth().background(Color.White).clickable(onClick = onCreatePost).padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.clickable(onClick = onProfile)) { UserAvatar(null, userInitials(me), 42) }
