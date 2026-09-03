@@ -114,34 +114,66 @@ class ReelRepository(private val connect: () -> Connection = {
         Unit
     }
 
-    suspend fun comments(id: UUID, cursor: String?, limit: Int): CommentPage = transaction { db ->
+    suspend fun comments(id: UUID, viewer: UUID, cursor: String?, limit: Int): CommentPage = transaction { db ->
         db.owner(id)
         val boundary = cursor?.let { parseCommentCursor(it) }
         val clause = if (boundary == null) "" else " AND (c.created_at < ? OR (c.created_at=? AND c.id<?))"
-        val args = mutableListOf<Any>(id)
+        val args = mutableListOf<Any>(viewer, id)
         boundary?.let { (time, commentId) -> args.addAll(listOf(time, time, commentId)) }
         args += limit + 1
-        val comments = db.query("""SELECT c.id,c.content,c.created_at,u.id author_id,u.username,u.full_name,p.avatar_url
+        val comments = db.query("""SELECT c.id,c.content,c.created_at,c.parent_comment_id,u.id author_id,u.username,u.full_name,p.avatar_url,
+            (SELECT COUNT(*) FROM reel_comment_reactions x WHERE x.comment_id=c.id) likes,
+            EXISTS(SELECT 1 FROM reel_comment_reactions x WHERE x.comment_id=c.id AND x.user_id=?) liked
             FROM reel_comments c JOIN users u ON u.id=c.author_id LEFT JOIN profiles p ON p.user_id=u.id
-            WHERE c.reel_id=?$clause ORDER BY c.created_at DESC,c.id DESC LIMIT ?""", *args.toTypedArray()) {
-            ReelCommentDto(it.getString("id"), it.author(), it.getString("content"), it.getTimestamp("created_at").toInstant().toString())
+            WHERE c.reel_id=? AND c.parent_comment_id IS NULL$clause ORDER BY c.created_at DESC,c.id DESC LIMIT ?""", *args.toTypedArray()) {
+            it.reelComment()
         }
-        val page = comments.take(limit)
+        val roots = comments.take(limit)
+        val replies = db.reelReplies(id, viewer, roots.map { uuid(it.id) })
+        val page = roots.map { it.copy(replies = replies[it.id].orEmpty()) }
         CommentPage(page, if (comments.size > limit) page.last().let { "${it.createdAt}|${it.id}" } else null)
     }
 
     suspend fun comment(id: UUID, user: UUID, request: AddComment): ReelCommentDto = transaction { db ->
         db.owner(id)
         val commentId = uuid(request.id)
+        val parentId = request.parentId?.let(::uuid)
         val content = request.content.trim()
         if (content.isEmpty() || content.length > 1000) throw ReelFailure(400, "Comment must contain 1–1000 characters.")
-        db.update("INSERT INTO reel_comments(id,reel_id,author_id,content) VALUES(?,?,?,?) ON CONFLICT DO NOTHING", commentId, id, user, content)
-        val rows = db.query("""SELECT c.id,c.reel_id,c.content,c.created_at,u.id author_id,u.username,u.full_name,p.avatar_url
-            FROM reel_comments c JOIN users u ON u.id=c.author_id LEFT JOIN profiles p ON p.user_id=u.id WHERE c.id=?""", commentId) {
+        parentId?.let { parent ->
+            db.query("SELECT parent_comment_id FROM reel_comments WHERE id=? AND reel_id=?", parent, id) {
+                if (it.getString("parent_comment_id") != null) throw ReelFailure(400, "Replies must target a top-level comment.")
+                true
+            }.firstOrNull() ?: throw ReelFailure(404, "Comment to reply to was not found.")
+        }
+        db.update("INSERT INTO reel_comments(id,reel_id,author_id,content,parent_comment_id) VALUES(?,?,?,?,?) ON CONFLICT DO NOTHING", commentId, id, user, content, parentId)
+        val rows = db.query("""SELECT c.id,c.reel_id,c.content,c.created_at,c.parent_comment_id,u.id author_id,u.username,u.full_name,p.avatar_url,
+            (SELECT COUNT(*) FROM reel_comment_reactions x WHERE x.comment_id=c.id) likes,
+            EXISTS(SELECT 1 FROM reel_comment_reactions x WHERE x.comment_id=c.id AND x.user_id=?) liked
+            FROM reel_comments c JOIN users u ON u.id=c.author_id LEFT JOIN profiles p ON p.user_id=u.id WHERE c.id=?""", user, commentId) {
             if (it.getString("author_id") != user.toString() || it.getString("reel_id") != id.toString()) throw ReelFailure(409, "Comment identifier already used.")
-            ReelCommentDto(it.getString("id"), it.author(), it.getString("content"), it.getTimestamp("created_at").toInstant().toString())
+            if (it.getString("parent_comment_id") != parentId?.toString()) throw ReelFailure(409, "Comment identifier already used.")
+            it.reelComment()
         }
         rows.single()
+    }
+
+    suspend fun likeComment(reel: UUID, comment: UUID, user: UUID, liked: Boolean): ReelCommentDto = transaction { db ->
+        db.owner(reel)
+        val owner = db.query("SELECT author_id FROM reel_comments WHERE id=? AND reel_id=?", comment, reel) { it.getObject(1, UUID::class.java) }.firstOrNull()
+            ?: throw ReelFailure(404, "Comment not found.")
+        if (liked) {
+            val inserted = db.update("INSERT INTO reel_comment_reactions(comment_id,user_id) VALUES(?,?) ON CONFLICT DO NOTHING", comment, user)
+            if (inserted > 0 && owner != user) db.notification(owner, user, "REEL_COMMENT_LIKE", comment)
+        } else {
+            db.update("DELETE FROM reel_comment_reactions WHERE comment_id=? AND user_id=?", comment, user)
+            db.update("DELETE FROM notifications WHERE recipient_id=? AND actor_id=? AND type='REEL_COMMENT_LIKE' AND target_id=?", owner, user, comment)
+        }
+        db.query("""SELECT c.id,c.content,c.created_at,c.parent_comment_id,u.id author_id,u.username,u.full_name,p.avatar_url,
+            (SELECT COUNT(*) FROM reel_comment_reactions x WHERE x.comment_id=c.id) likes,
+            EXISTS(SELECT 1 FROM reel_comment_reactions x WHERE x.comment_id=c.id AND x.user_id=?) liked
+            FROM reel_comments c JOIN users u ON u.id=c.author_id LEFT JOIN profiles p ON p.user_id=u.id
+            WHERE c.id=? AND c.reel_id=?""", user, comment, reel) { it.reelComment() }.single()
     }
 
     suspend fun deleteComment(reel: UUID, comment: UUID, user: UUID) = transaction { db ->
@@ -172,10 +204,28 @@ class ReelRepository(private val connect: () -> Connection = {
 
     private fun Connection.owner(id: UUID): UUID = query("SELECT author_id FROM reels WHERE id=?", id) { it.getObject(1, UUID::class.java) }.firstOrNull()
         ?: throw ReelFailure(404, "Reel not found.")
+    private fun Connection.notification(recipient: UUID, actor: UUID, type: String, target: UUID) {
+        update("INSERT INTO notifications(id,recipient_id,actor_id,type,target_id) VALUES(?,?,?,?,?)", UUID.randomUUID(), recipient, actor, type, target)
+    }
     private fun Connection.asset(id: UUID): ReelAsset? = query("SELECT a.* FROM reel_assets a JOIN reels r ON r.id=a.reel_id WHERE a.reel_id=?", id) {
         ReelAsset(it.getString("video_key"), it.getString("thumbnail_key"), it.getString("storage_backend"), it.getLong("file_size"))
     }.firstOrNull()
     private fun ResultSet.author() = ReelAuthor(getString("author_id"), getString("username"), getString("full_name")?.takeIf(String::isNotBlank) ?: getString("username"), getString("avatar_url"))
+    private fun Connection.reelReplies(reel: UUID, viewer: UUID, parents: List<UUID>): Map<String, List<ReelCommentDto>> {
+        if (parents.isEmpty()) return emptyMap()
+        val placeholders = parents.joinToString(",") { "?" }
+        return query("""SELECT c.id,c.content,c.created_at,c.parent_comment_id,u.id author_id,u.username,u.full_name,p.avatar_url,
+            (SELECT COUNT(*) FROM reel_comment_reactions x WHERE x.comment_id=c.id) likes,
+            EXISTS(SELECT 1 FROM reel_comment_reactions x WHERE x.comment_id=c.id AND x.user_id=?) liked
+            FROM reel_comments c JOIN users u ON u.id=c.author_id LEFT JOIN profiles p ON p.user_id=u.id
+            WHERE c.reel_id=? AND c.parent_comment_id IN ($placeholders)
+            ORDER BY c.created_at ASC,c.id ASC""", viewer, reel, *parents.toTypedArray()) {
+            it.getString("parent_comment_id") to it.reelComment()
+        }.groupBy({ it.first }, { it.second })
+    }
+    private fun ResultSet.reelComment() = ReelCommentDto(
+        getString("id"), author(), getString("content"), getTimestamp("created_at").toInstant().toString(), getString("parent_comment_id"), getLong("likes"), getBoolean("liked"),
+    )
     private fun ResultSet.reel() = ReelDto(getString("id"), author(), getString("caption") ?: "", getString("video_url"), getString("thumbnail_url"),
         getLong("duration_ms"), getInt("width"), getInt("height"), getTimestamp("created_at").toInstant().toString(), getLong("likes"), getLong("comments"), getBoolean("liked"),
         getString("video_key"), getString("thumbnail_key"), getString("storage_backend"))

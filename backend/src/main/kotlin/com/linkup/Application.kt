@@ -9,6 +9,8 @@ import com.linkup.reels.ReelRepository
 import com.linkup.reels.reelRoutes
 import com.linkup.posts.PostRepository
 import com.linkup.posts.postRoutes
+import com.linkup.search.SearchRepository
+import com.linkup.search.searchRoutes
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
@@ -54,5 +56,6 @@ fun Application.module() {
         authRoutes(userRepository)
         reelRoutes(ReelRepository())
         postRoutes(PostRepository())
+        searchRoutes(SearchRepository())
     }
 }

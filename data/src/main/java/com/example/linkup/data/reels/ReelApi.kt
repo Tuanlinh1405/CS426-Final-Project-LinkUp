@@ -16,6 +16,8 @@ interface ReelApi {
     @DELETE("reels/{id}/hidden") suspend fun unhide(@Path("id") id: String): Response<Unit>
     @GET("reels/{id}/comments") suspend fun comments(@Path("id") id: String, @Query("cursor") cursor: String?): Response<CommentPage>
     @POST("reels/{id}/comments") suspend fun comment(@Path("id") id: String, @Body comment: AddComment): Response<ReelComment>
+    @PUT("reels/{id}/comments/{commentId}/reaction") suspend fun likeComment(@Path("id") id: String, @Path("commentId") commentId: String): Response<ReelComment>
+    @DELETE("reels/{id}/comments/{commentId}/reaction") suspend fun unlikeComment(@Path("id") id: String, @Path("commentId") commentId: String): Response<ReelComment>
     @DELETE("reels/{id}/comments/{commentId}") suspend fun deleteComment(@Path("id") id: String, @Path("commentId") commentId: String): Response<Unit>
     @POST("reels/{id}/events") suspend fun watch(@Path("id") id: String, @Body event: WatchEvent): Response<Unit>
 }

@@ -71,11 +71,28 @@ class PostRoutesTest {
             setBody(Json.encodeToString(AddPostComment(commentId, "Looks great")))
         }
         assertEquals(HttpStatusCode.Created, comment.status)
+        val rootComment = Json.decodeFromString<PostCommentDto>(comment.bodyAsText())
+        val reply = client.post("/posts/$postId/comments") {
+            bearerAuth(token(database.alice)); contentType(ContentType.Application.Json)
+            setBody(Json.encodeToString(AddPostComment(UUID.randomUUID().toString(), "Thank you", rootComment.id)))
+        }
+        assertEquals(HttpStatusCode.Created, reply.status)
+        val comments = Json.decodeFromString<PostCommentPage>(client.get("/posts/$postId/comments") { bearerAuth(token(database.bob)) }.bodyAsText())
+        assertEquals("Thank you", comments.items.single().replies.single().content)
+        assertEquals(rootComment.id, comments.items.single().replies.single().parentId)
+        repeat(2) {
+            val likedComment = client.put("/posts/$postId/comments/${rootComment.id}/reaction") { bearerAuth(token(database.alice)) }
+            assertEquals(HttpStatusCode.OK, likedComment.status)
+            assertEquals(1, Json.decodeFromString<PostCommentDto>(likedComment.bodyAsText()).likeCount)
+        }
+        val unlikedComment = client.delete("/posts/$postId/comments/${rootComment.id}/reaction") { bearerAuth(token(database.alice)) }
+        assertEquals(HttpStatusCode.OK, unlikedComment.status)
+        assertFalse(Json.decodeFromString<PostCommentDto>(unlikedComment.bodyAsText()).liked)
         val detail = Json.decodeFromString<PostDto>(client.get("/posts/$postId") { bearerAuth(token(database.bob)) }.bodyAsText())
-        assertTrue(detail.liked); assertEquals(1, detail.likeCount); assertEquals(1, detail.commentCount)
+        assertTrue(detail.liked); assertEquals(1, detail.likeCount); assertEquals(2, detail.commentCount)
         database.connect().use { db ->
             db.createStatement().use { statement -> statement.executeQuery("SELECT COUNT(*) FROM notifications").use { result ->
-                result.next(); assertEquals(2, result.getInt(1))
+                result.next(); assertEquals(3, result.getInt(1))
             } }
         }
         assertEquals(HttpStatusCode.Forbidden, client.delete("/posts/$postId") { bearerAuth(token(database.bob)) }.status)

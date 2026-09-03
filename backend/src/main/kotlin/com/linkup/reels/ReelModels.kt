@@ -13,9 +13,18 @@ import kotlinx.serialization.Transient
     @Transient val storageBackend: String? = null,
 )
 @Serializable data class ReelPage(val items: List<ReelDto>, val nextCursor: String? = null)
-@Serializable data class ReelCommentDto(val id: String, val author: ReelAuthor, val content: String, val createdAt: String)
+@Serializable data class ReelCommentDto(
+    val id: String,
+    val author: ReelAuthor,
+    val content: String,
+    val createdAt: String,
+    val parentId: String? = null,
+    val likeCount: Long = 0,
+    val liked: Boolean = false,
+    val replies: List<ReelCommentDto> = emptyList(),
+)
 @Serializable data class CommentPage(val items: List<ReelCommentDto>, val nextCursor: String? = null)
-@Serializable data class AddComment(val id: String, val content: String)
+@Serializable data class AddComment(val id: String, val content: String, val parentId: String? = null)
 @Serializable data class WatchEvent(val id: String, val watchedMs: Long, val reason: String = "HEARTBEAT")
 @Serializable data class ApiError(val message: String)
 class ReelFailure(val status: Int, override val message: String) : RuntimeException(message)

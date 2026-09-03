@@ -126,6 +126,8 @@ fun Route.postRoutes(repository: PostRepository, storage: ReelStorageRegistry = 
                 delete("/reaction") { call.postGuard { val user = call.postUser(repository); call.respond(repository.like(PostRepository.uuid(call.parameters["id"]), user, false).directMedia(storage.current())) } }
                 get("/comments") { call.postGuard { val user = call.postUser(repository); call.respond(repository.comments(PostRepository.uuid(call.parameters["id"]), user, call.request.queryParameters["cursor"], call.postPageLimit())) } }
                 post("/comments") { call.postGuard { val user = call.postUser(repository); call.respond(HttpStatusCode.Created, repository.comment(PostRepository.uuid(call.parameters["id"]), user, call.receive<AddPostComment>())) } }
+                put("/comments/{commentId}/reaction") { call.postGuard { val user = call.postUser(repository); call.respond(repository.likeComment(PostRepository.uuid(call.parameters["id"]), PostRepository.uuid(call.parameters["commentId"]), user, true)) } }
+                delete("/comments/{commentId}/reaction") { call.postGuard { val user = call.postUser(repository); call.respond(repository.likeComment(PostRepository.uuid(call.parameters["id"]), PostRepository.uuid(call.parameters["commentId"]), user, false)) } }
                 delete("/comments/{commentId}") { call.postGuard { repository.deleteComment(PostRepository.uuid(call.parameters["id"]), PostRepository.uuid(call.parameters["commentId"]), call.postUser(repository)); call.respond(HttpStatusCode.NoContent) } }
             }
         }

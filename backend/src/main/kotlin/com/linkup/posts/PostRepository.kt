@@ -81,31 +81,64 @@ class PostRepository(private val connect: () -> Connection = {
         db.visibleOwner(id, viewer)
         val boundary = cursor?.let(::parseCursor)
         val clause = if (boundary == null) "" else " AND (c.created_at < ? OR (c.created_at=? AND c.id<?))"
-        val args = mutableListOf<Any>(id)
+        val args = mutableListOf<Any>(viewer, id)
         boundary?.let { (time, commentId) -> args.addAll(listOf(time, time, commentId)) }
         args += limit + 1
-        val rows = db.query("""SELECT c.id,c.content,c.created_at,u.id author_id,u.username,u.full_name,p.avatar_url
+        val rows = db.query("""SELECT c.id,c.content,c.created_at,c.parent_comment_id,u.id author_id,u.username,u.full_name,p.avatar_url,
+            (SELECT COUNT(*) FROM comment_reactions x WHERE x.comment_id=c.id) likes,
+            EXISTS(SELECT 1 FROM comment_reactions x WHERE x.comment_id=c.id AND x.user_id=?) liked
             FROM comments c JOIN users u ON u.id=c.author_id LEFT JOIN profiles p ON p.user_id=u.id
-            WHERE c.post_id=?$clause ORDER BY c.created_at DESC,c.id DESC LIMIT ?""", *args.toTypedArray()) {
-            PostCommentDto(it.getString("id"), it.author(), it.getString("content"), it.getTimestamp("created_at").toInstant().toString())
+            WHERE c.post_id=? AND c.parent_comment_id IS NULL$clause ORDER BY c.created_at DESC,c.id DESC LIMIT ?""", *args.toTypedArray()) {
+            it.postComment()
         }
-        val page = rows.take(limit)
+        val roots = rows.take(limit)
+        val replies = db.postReplies(id, viewer, roots.map { uuid(it.id) })
+        val page = roots.map { it.copy(replies = replies[it.id].orEmpty()) }
         PostCommentPage(page, if (rows.size > limit) page.last().let { "${it.createdAt}|${it.id}" } else null)
     }
 
     suspend fun comment(id: UUID, user: UUID, request: AddPostComment): PostCommentDto = transaction { db ->
         val owner = db.visibleOwner(id, user)
         val commentId = uuid(request.id)
+        val parentId = request.parentId?.let(::uuid)
         val content = request.content.trim()
         if (content.isEmpty() || content.length > 1000) throw PostFailure(400, "Comment must contain 1–1000 characters.")
-        val inserted = db.update("INSERT INTO comments(id,post_id,author_id,content) VALUES(?,?,?,?) ON CONFLICT DO NOTHING", commentId, id, user, content)
-        val result = db.query("""SELECT c.id,c.post_id,c.content,c.created_at,u.id author_id,u.username,u.full_name,p.avatar_url
-            FROM comments c JOIN users u ON u.id=c.author_id LEFT JOIN profiles p ON p.user_id=u.id WHERE c.id=?""", commentId) {
+        val replyRecipient = parentId?.let { parent ->
+            db.query("SELECT author_id,parent_comment_id FROM comments WHERE id=? AND post_id=?", parent, id) {
+                if (it.getString("parent_comment_id") != null) throw PostFailure(400, "Replies must target a top-level comment.")
+                it.getObject("author_id", UUID::class.java)
+            }.firstOrNull() ?: throw PostFailure(404, "Comment to reply to was not found.")
+        }
+        val inserted = db.update("INSERT INTO comments(id,post_id,author_id,content,parent_comment_id) VALUES(?,?,?,?,?) ON CONFLICT DO NOTHING", commentId, id, user, content, parentId)
+        val result = db.query("""SELECT c.id,c.post_id,c.content,c.created_at,c.parent_comment_id,u.id author_id,u.username,u.full_name,p.avatar_url,
+            (SELECT COUNT(*) FROM comment_reactions x WHERE x.comment_id=c.id) likes,
+            EXISTS(SELECT 1 FROM comment_reactions x WHERE x.comment_id=c.id AND x.user_id=?) liked
+            FROM comments c JOIN users u ON u.id=c.author_id LEFT JOIN profiles p ON p.user_id=u.id WHERE c.id=?""", user, commentId) {
             if (it.getString("author_id") != user.toString() || it.getString("post_id") != id.toString()) throw PostFailure(409, "Comment identifier already used.")
-            PostCommentDto(it.getString("id"), it.author(), it.getString("content"), it.getTimestamp("created_at").toInstant().toString())
+            if (it.getString("parent_comment_id") != parentId?.toString()) throw PostFailure(409, "Comment identifier already used.")
+            it.postComment()
         }.single()
-        if (inserted > 0 && owner != user) db.notification(owner, user, "POST_COMMENT", id)
+        val recipient = replyRecipient ?: owner
+        if (inserted > 0 && recipient != user) db.notification(recipient, user, "POST_COMMENT", id)
         result
+    }
+
+    suspend fun likeComment(post: UUID, comment: UUID, user: UUID, liked: Boolean): PostCommentDto = transaction { db ->
+        db.visibleOwner(post, user)
+        val owner = db.query("SELECT author_id FROM comments WHERE id=? AND post_id=?", comment, post) { it.getObject(1, UUID::class.java) }.firstOrNull()
+            ?: throw PostFailure(404, "Comment not found.")
+        if (liked) {
+            val inserted = db.update("INSERT INTO comment_reactions(comment_id,user_id) VALUES(?,?) ON CONFLICT DO NOTHING", comment, user)
+            if (inserted > 0 && owner != user) db.notification(owner, user, "COMMENT_LIKE", comment)
+        } else {
+            db.update("DELETE FROM comment_reactions WHERE comment_id=? AND user_id=?", comment, user)
+            db.update("DELETE FROM notifications WHERE recipient_id=? AND actor_id=? AND type='COMMENT_LIKE' AND target_id=?", owner, user, comment)
+        }
+        db.query("""SELECT c.id,c.content,c.created_at,c.parent_comment_id,u.id author_id,u.username,u.full_name,p.avatar_url,
+            (SELECT COUNT(*) FROM comment_reactions x WHERE x.comment_id=c.id) likes,
+            EXISTS(SELECT 1 FROM comment_reactions x WHERE x.comment_id=c.id AND x.user_id=?) liked
+            FROM comments c JOIN users u ON u.id=c.author_id LEFT JOIN profiles p ON p.user_id=u.id
+            WHERE c.id=? AND c.post_id=?""", user, comment, post) { it.postComment() }.single()
     }
 
     suspend fun deleteComment(post: UUID, comment: UUID, user: UUID) = transaction { db ->
@@ -156,7 +189,22 @@ class PostRepository(private val connect: () -> Connection = {
             )
         }.groupBy({ it.first }, { it.second })
     }
+    private fun Connection.postReplies(post: UUID, viewer: UUID, parents: List<UUID>): Map<String, List<PostCommentDto>> {
+        if (parents.isEmpty()) return emptyMap()
+        val placeholders = parents.joinToString(",") { "?" }
+        return query("""SELECT c.id,c.content,c.created_at,c.parent_comment_id,u.id author_id,u.username,u.full_name,p.avatar_url,
+            (SELECT COUNT(*) FROM comment_reactions x WHERE x.comment_id=c.id) likes,
+            EXISTS(SELECT 1 FROM comment_reactions x WHERE x.comment_id=c.id AND x.user_id=?) liked
+            FROM comments c JOIN users u ON u.id=c.author_id LEFT JOIN profiles p ON p.user_id=u.id
+            WHERE c.post_id=? AND c.parent_comment_id IN ($placeholders)
+            ORDER BY c.created_at ASC,c.id ASC""", viewer, post, *parents.toTypedArray()) {
+            it.getString("parent_comment_id") to it.postComment()
+        }.groupBy({ it.first }, { it.second })
+    }
     private fun ResultSet.author() = PostAuthor(getString("author_id"), getString("username"), getString("full_name")?.takeIf(String::isNotBlank) ?: getString("username"), getString("avatar_url"))
+    private fun ResultSet.postComment() = PostCommentDto(
+        getString("id"), author(), getString("content"), getTimestamp("created_at").toInstant().toString(), getString("parent_comment_id"), getLong("likes"), getBoolean("liked"),
+    )
     private fun ResultSet.rawPost() = RawPost(getString("id"), author(), getString("content") ?: "", getString("privacy_level"),
         getTimestamp("created_at").toInstant().toString(), getTimestamp("updated_at").toInstant().toString(), getLong("likes"), getLong("comments"), getBoolean("liked"))
 

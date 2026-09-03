@@ -24,8 +24,20 @@ class ReelRepositoryTest {
         assertTrue(repo.get(id, database.bob)!!.liked)
         val comment = AddComment(UUID.randomUUID().toString(), "Hello")
         repo.comment(id, database.bob, comment); repo.comment(id, database.bob, comment)
-        assertEquals(1, repo.get(id, database.bob)!!.commentCount)
-        assertEquals("Hello", repo.comments(id, null, 10).items.single().content)
+        val root = repo.comments(id, database.bob, null, 10).items.single()
+        val reply = AddComment(UUID.randomUUID().toString(), "Reply", root.id)
+        repo.comment(id, database.alice, reply); repo.comment(id, database.alice, reply)
+        assertEquals(2, repo.get(id, database.bob)!!.commentCount)
+        val thread = repo.comments(id, database.bob, null, 10).items.single()
+        assertEquals("Hello", thread.content)
+        assertEquals("Reply", thread.replies.single().content)
+        assertEquals(thread.id, thread.replies.single().parentId)
+        repo.likeComment(id, UUID.fromString(thread.id), database.alice, true)
+        repo.likeComment(id, UUID.fromString(thread.id), database.alice, true)
+        val likedThread = repo.comments(id, database.alice, null, 10).items.single()
+        assertTrue(likedThread.liked); assertEquals(1, likedThread.likeCount)
+        repo.likeComment(id, UUID.fromString(thread.id), database.alice, false)
+        assertFalse(repo.comments(id, database.alice, null, 10).items.single().liked)
         repo.like(id, database.bob, false); repo.like(id, database.bob, false)
         assertEquals(0, repo.get(id, database.bob)!!.likeCount)
     }
@@ -45,8 +57,8 @@ class ReelRepositoryTest {
         val repo = database.repository
         val ids = (1..5).map { create() }
         repeat(4) { repo.comment(ids[0], database.bob, AddComment(UUID.randomUUID().toString(), "Comment $it")) }
-        val first = repo.comments(ids[0], null, 2)
-        val second = repo.comments(ids[0], first.nextCursor, 2)
+        val first = repo.comments(ids[0], database.bob, null, 2)
+        val second = repo.comments(ids[0], database.bob, first.nextCursor, 2)
         assertEquals(4, (first.items + second.items).map { it.id }.toSet().size)
         val feed = ReelFeed(repo)
         val page1 = feed.page(database.bob, null, null, 2)

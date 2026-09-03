@@ -21,10 +21,12 @@ import com.example.linkup.core.navigation.AppNavigator
 import com.example.linkup.core.navigation.AppRoute
 import com.example.linkup.core.ui.LinkUpBottomBar
 import com.example.linkup.data.feed.PostRepositoryImpl
+import com.example.linkup.data.feed.FeedPost
 import com.example.linkup.data.repository.AuthRepositoryImpl
 import com.example.linkup.data.repository.FakeLinkUpRepository
 import com.example.linkup.data.network.AuthSession
 import com.example.linkup.data.reels.ReelRepositoryImpl
+import com.example.linkup.data.search.SearchRepositoryImpl
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import com.example.linkup.feature.ai.AiChatScreen
@@ -63,12 +65,15 @@ fun LinkUpApp() {
     val authRepository = remember { AuthRepositoryImpl() }
     val reelsRepository = remember { ReelRepositoryImpl() }
     val postRepository = remember { PostRepositoryImpl() }
+    val searchRepository = remember { SearchRepositoryImpl() }
     val session by AuthSession.state.collectAsState()
     DisposableEffect(reelsRepository) { onDispose { reelsRepository.close() } }
     val navigator = remember { AppNavigator() }
     var current by remember { mutableStateOf(navigator.current) }
     var messages by remember { mutableStateOf(repository.messages()) }
     var selectedPostId by remember { mutableStateOf<String?>(null) }
+    var selectedPost by remember { mutableStateOf<FeedPost?>(null) }
+    var selectedReelId by remember { mutableStateOf<String?>(null) }
 
     fun goTo(route: AppRoute) { navigator.goTo(route); current = navigator.current }
     fun replace(route: AppRoute) { navigator.replace(route); current = navigator.current }
@@ -91,7 +96,10 @@ fun LinkUpApp() {
         contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
             if (current in bottomDestinations) {
-                LinkUpBottomBar(current) { destination -> if (destination != current) reset(destination) }
+                LinkUpBottomBar(current) { destination -> if (destination != current) {
+                    if (destination == AppRoute.REELS) selectedReelId = null
+                    reset(destination)
+                } }
             }
         }
     ) { padding ->
@@ -108,7 +116,7 @@ fun LinkUpApp() {
                 AppRoute.FEED -> FeedScreen(
                     session?.user, postRepository,
                     onCreatePost = { goTo(AppRoute.CREATE_POST) },
-                    onOpenPost = { selectedPostId = it; goTo(AppRoute.POST_DETAIL) },
+                    onOpenPost = { selectedPost = it; selectedPostId = it.id; goTo(AppRoute.POST_DETAIL) },
                     onProfile = { reset(AppRoute.PROFILE) },
                     onSearch = { goTo(AppRoute.SEARCH) },
                     onNotifications = { goTo(AppRoute.NOTIFICATIONS) },
@@ -116,12 +124,17 @@ fun LinkUpApp() {
                     onSignIn = { AuthSession.clear(); reset(AppRoute.LOGIN) },
                 )
                 AppRoute.CREATE_POST -> CreatePostScreen(session?.user, postRepository, ::back) { reset(AppRoute.FEED) }
-                AppRoute.POST_DETAIL -> PostDetailScreen(selectedPostId, session?.user, postRepository, ::back) { reset(AppRoute.FEED) }
-                AppRoute.REELS -> ReelsScreen(reelsRepository, session?.user, { goTo(AppRoute.UPLOAD_REEL) }, { AuthSession.clear(); reset(AppRoute.LOGIN) })
-                AppRoute.UPLOAD_REEL -> UploadReelScreen(session?.user, reelsRepository, ::back) { reset(AppRoute.REELS) }
+                AppRoute.POST_DETAIL -> PostDetailScreen(selectedPostId, selectedPost, session?.user, postRepository, ::back) { reset(AppRoute.FEED) }
+                AppRoute.REELS -> ReelsScreen(reelsRepository, session?.user, { goTo(AppRoute.UPLOAD_REEL) }, { AuthSession.clear(); reset(AppRoute.LOGIN) }, selectedReelId)
+                AppRoute.UPLOAD_REEL -> UploadReelScreen(session?.user, reelsRepository, ::back) { selectedReelId = null; reset(AppRoute.REELS) }
                 AppRoute.PROFILE -> ProfileScreen(repository.currentUser(), { goTo(AppRoute.EDIT_PROFILE) }, { goTo(AppRoute.SETTINGS) })
                 AppRoute.EDIT_PROFILE -> EditProfileScreen(repository.currentUser(), ::back, ::back)
-                AppRoute.SEARCH -> SearchScreen(::back) { reset(AppRoute.PROFILE) }
+                AppRoute.SEARCH -> SearchScreen(
+                    searchRepository,
+                    onBack = ::back,
+                    onOpenPost = { selectedPost = null; selectedPostId = it; goTo(AppRoute.POST_DETAIL) },
+                    onOpenReel = { selectedReelId = it; reset(AppRoute.REELS) },
+                )
                 AppRoute.NOTIFICATIONS -> NotificationsScreen(repository.notifications(), ::back) { goTo(AppRoute.POST_DETAIL) }
                 AppRoute.CHAT_LIST -> ChatListScreen(repository.conversations()) { goTo(AppRoute.CHAT_DETAIL) }
                 AppRoute.CHAT_DETAIL -> ChatDetailScreen(messages, ::back) { messages = repository.sendMessage(it) }

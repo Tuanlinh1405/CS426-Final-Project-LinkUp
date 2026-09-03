@@ -27,9 +27,9 @@ class ReelPlaybackWindowTest {
     }
 
     @Test
-    fun `warm window favors upcoming reels and keeps two previous reels`() {
-        assertEquals(listOf(6, 7, 8, 4, 3), warmIndices(currentIndex = 5, itemCount = 10))
-        assertEquals(listOf(1, 2, 3), warmIndices(currentIndex = 0, itemCount = 10))
-        assertEquals(listOf(8, 7), warmIndices(currentIndex = 9, itemCount = 10))
+    fun `warm window skips adjacent players and favors farther upcoming reels`() {
+        assertEquals(listOf(7, 8, 3), warmIndices(currentIndex = 5, itemCount = 10))
+        assertEquals(listOf(2, 3), warmIndices(currentIndex = 0, itemCount = 10))
+        assertEquals(listOf(7), warmIndices(currentIndex = 9, itemCount = 10))
     }
 }

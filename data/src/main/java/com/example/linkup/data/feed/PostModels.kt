@@ -25,9 +25,13 @@ import kotlinx.serialization.Serializable
     val liked: Boolean = false,
 )
 @Serializable data class FeedPage(val items: List<FeedPost>, val nextCursor: String? = null)
-@Serializable data class FeedComment(val id: String, val author: FeedAuthor, val content: String, val createdAt: String)
+@Serializable data class FeedComment(
+    val id: String, val author: FeedAuthor, val content: String, val createdAt: String,
+    val parentId: String? = null, val likeCount: Long = 0, val liked: Boolean = false,
+    val replies: List<FeedComment> = emptyList(),
+)
 @Serializable data class FeedCommentPage(val items: List<FeedComment>, val nextCursor: String? = null)
-@Serializable data class AddFeedComment(val id: String, val content: String)
+@Serializable data class AddFeedComment(val id: String, val content: String, val parentId: String? = null)
 @Serializable data class FeedApiError(val message: String)
 
 class FeedApiException(val status: Int, message: String) : Exception(message)

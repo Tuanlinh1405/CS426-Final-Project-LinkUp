@@ -18,5 +18,7 @@ interface PostApi {
     @DELETE("posts/{id}") suspend fun delete(@Path("id") id: String): Response<Unit>
     @GET("posts/{id}/comments") suspend fun comments(@Path("id") id: String, @Query("cursor") cursor: String?): Response<FeedCommentPage>
     @POST("posts/{id}/comments") suspend fun comment(@Path("id") id: String, @Body body: AddFeedComment): Response<FeedComment>
+    @PUT("posts/{id}/comments/{commentId}/reaction") suspend fun likeComment(@Path("id") id: String, @Path("commentId") commentId: String): Response<FeedComment>
+    @DELETE("posts/{id}/comments/{commentId}/reaction") suspend fun unlikeComment(@Path("id") id: String, @Path("commentId") commentId: String): Response<FeedComment>
     @DELETE("posts/{id}/comments/{commentId}") suspend fun deleteComment(@Path("id") id: String, @Path("commentId") commentId: String): Response<Unit>
 }

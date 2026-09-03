@@ -37,4 +37,14 @@ class PostRepositoryTest {
         try { repository.delete("p1"); fail("Expected API error") }
         catch (error: FeedApiException) { assertEquals(403, error.status); assertTrue(error.message!!.contains("author")) }
     }
+    @Test fun `comment prefetch is cached and does not duplicate the request`() = runBlocking {
+        server.enqueue(MockResponse().setHeader("Content-Type", "application/json").setBody("""{"items":[{"id":"c1","author":{"id":"u1","username":"alice","name":"Alice"},"content":"First","createdAt":"2026-01-01T00:00:00Z"}],"nextCursor":null}"""))
+
+        repository.prefetchComments("p1")
+        repository.prefetchComments("p1")
+
+        assertEquals("c1", repository.cachedComments("p1")!!.items.single().id)
+        assertEquals(1, server.requestCount)
+        assertEquals("/posts/p1/comments", server.takeRequest().requestUrl!!.encodedPath)
+    }
 }

@@ -39,9 +39,12 @@ import com.example.linkup.data.model.UserResponse
 import com.example.linkup.data.network.ApiClient
 import com.example.linkup.ui.theme.*
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import java.io.File
+import java.time.Instant
 import java.util.UUID
 
 @Composable
@@ -49,7 +52,7 @@ fun FeedScreen(
     me: UserResponse?,
     repository: PostRepository,
     onCreatePost: () -> Unit,
-    onOpenPost: (String) -> Unit,
+    onOpenPost: (FeedPost) -> Unit,
     onProfile: () -> Unit,
     onSearch: () -> Unit,
     onNotifications: () -> Unit,
@@ -65,8 +68,22 @@ fun FeedScreen(
     var loadingMore by remember { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
-    var busyPost by remember { mutableStateOf<String?>(null) }
+    val likingPosts = remember { mutableStateMapOf<String, Boolean>() }
     fun replace(post: FeedPost) { posts.indexOfFirst { it.id == post.id }.takeIf { it >= 0 }?.let { posts[it] = post } }
+    fun togglePostLike(post: FeedPost) {
+        if (likingPosts[post.id] == true) return
+        val target = !post.liked
+        replace(post.copy(liked = target, likeCount = (post.likeCount + if (target) 1 else -1).coerceAtLeast(0)))
+        likingPosts[post.id] = true
+        scope.launch {
+            try {
+                // Media URLs are signed. Keeping the current media objects prevents an image reload.
+                replace(repository.like(post.id, target).copy(media = post.media))
+            } catch (e: CancellationException) { replace(post); throw e }
+            catch (e: Exception) { replace(post); error = e.message ?: "Cannot update like." }
+            finally { likingPosts.remove(post.id) }
+        }
+    }
     fun share(post: FeedPost) {
         val media = post.media.firstOrNull()?.let { ApiClient.mediaUrl("media/${it.id}") }
         context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
@@ -87,10 +104,18 @@ fun FeedScreen(
     val nearEnd by remember { derivedStateOf { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index?.let { it >= posts.size - 3 } == true } }
     val visiblePostIndex by remember { derivedStateOf { (listState.firstVisibleItemIndex - 1).coerceAtLeast(0) } }
     LaunchedEffect(visiblePostIndex, posts.size) {
-        // Let visible composables request first, then warm the same disk/memory cache for nearby posts.
-        delay(250)
-        posts.drop(visiblePostIndex).take(3).mapNotNull { it.media.firstOrNull() }.forEach { media ->
+        // Warm every photo of the visible post so opening its detail is instant. For nearby posts,
+        // only warm the cover photo to keep image prefetch from competing with user requests.
+        delay(150)
+        val nearby = posts.drop(visiblePostIndex).take(3)
+        val mediaToWarm = nearby.flatMapIndexed { offset, post -> if (offset == 0) post.media else post.media.take(1) }
+        mediaToWarm.distinctBy(FeedMedia::id).forEach { media ->
             context.imageLoader.enqueue(feedImageRequest(context, media))
+        }
+        nearby.firstOrNull()?.let { visible ->
+            try { repository.prefetchComments(visible.id) }
+            catch (e: CancellationException) { throw e }
+            catch (_: Exception) { /* Detail will retry while keeping the cached post visible. */ }
         }
     }
     LaunchedEffect(nearEnd, nextCursor, posts.size) {
@@ -136,17 +161,13 @@ fun FeedScreen(
                 }
             }
             items(posts, key = { it.id }) { post ->
-                PostCard(post, onOpen = { onOpenPost(post.id) }, onLike = {
-                    if (busyPost == null) {
-                        busyPost = post.id
-                        scope.launch {
-                            try { replace(repository.like(post.id, !post.liked)) }
-                            catch (e: CancellationException) { throw e }
-                            catch (e: Exception) { error = e.message ?: "Cannot update like." }
-                            finally { busyPost = null }
-                        }
-                    }
-                }, onShare = { share(post) }, enabled = busyPost == null)
+                PostCard(
+                    post,
+                    onOpen = { onOpenPost(post) },
+                    onLike = { togglePostLike(post) },
+                    onShare = { share(post) },
+                    likeEnabled = likingPosts[post.id] != true,
+                )
                 Spacer(Modifier.height(8.dp))
             }
             if (loadingMore) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
@@ -160,7 +181,7 @@ fun PostCard(
     onOpen: () -> Unit,
     onLike: () -> Unit,
     onShare: () -> Unit,
-    enabled: Boolean = true,
+    likeEnabled: Boolean = true,
     showAllMedia: Boolean = false,
     onDelete: (() -> Unit)? = null,
 ) {
@@ -191,9 +212,9 @@ fun PostCard(
         }
         HorizontalDivider(color = LinkDivider)
         Row(Modifier.fillMaxWidth().height(46.dp), verticalAlignment = Alignment.CenterVertically) {
-            PostAction(if (post.liked) "♥ Liked" else "♡ Like", Modifier.weight(1f), post.liked, enabled, onLike)
-            PostAction("□ Comment", Modifier.weight(1f), enabled = enabled, onClick = onOpen)
-            PostAction("↗ Share", Modifier.weight(1f), enabled = enabled, onClick = onShare)
+            PostAction(if (post.liked) "♥ Liked" else "♡ Like", Modifier.weight(1f), post.liked, likeEnabled, onLike)
+            PostAction("□ Comment", Modifier.weight(1f), onClick = onOpen)
+            PostAction("↗ Share", Modifier.weight(1f), onClick = onShare)
         }
     }
 }
@@ -281,63 +302,136 @@ fun CreatePostScreen(me: UserResponse?, repository: PostRepository, onBack: () -
 }
 
 @Composable
-fun PostDetailScreen(postId: String?, me: UserResponse?, repository: PostRepository, onBack: () -> Unit, onDeleted: () -> Unit) {
+fun PostDetailScreen(postId: String?, initialPost: FeedPost?, me: UserResponse?, repository: PostRepository, onBack: () -> Unit, onDeleted: () -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    var post by remember(postId) { mutableStateOf<FeedPost?>(null) }
-    val comments = remember(postId) { mutableStateListOf<FeedComment>() }
-    var cursor by remember { mutableStateOf<String?>(null) }
-    var loading by remember { mutableStateOf(true) }
-    var sending by remember { mutableStateOf(false) }
+    val cachedCommentPage = remember(postId) { postId?.let(repository::cachedComments) }
+    var post by remember(postId) { mutableStateOf(initialPost?.takeIf { it.id == postId }) }
+    val comments = remember(postId) { mutableStateListOf<FeedComment>().apply { addAll(cachedCommentPage?.items.orEmpty()) } }
+    var cursor by remember(postId) { mutableStateOf(cachedCommentPage?.nextCursor) }
+    var loadingPost by remember { mutableStateOf(post == null) }
+    var loadingComments by remember { mutableStateOf(cachedCommentPage == null) }
+    var commentsRefreshing by remember { mutableStateOf(true) }
+    var likingPost by remember { mutableStateOf(false) }
+    var postMutationVersion by remember { mutableIntStateOf(0) }
     var text by rememberSaveable { mutableStateOf("") }
     var requestId by remember { mutableStateOf(UUID.randomUUID().toString()) }
     var error by remember { mutableStateOf<String?>(null) }
     var confirmDeletePost by remember { mutableStateOf(false) }
     var deletingComment by remember { mutableStateOf<FeedComment?>(null) }
+    var replyingTo by remember { mutableStateOf<FeedComment?>(null) }
+    val likingComments = remember { mutableStateMapOf<String, Boolean>() }
+    val commentsAddedDuringLoad = remember { mutableStateMapOf<String, FeedComment>() }
     val list = rememberLazyListState()
+    fun updateComment(updated: FeedComment) {
+        val rootIndex = comments.indexOfFirst { it.id == updated.id || it.replies.any { reply -> reply.id == updated.id } }
+        if (rootIndex < 0) return
+        val root = comments[rootIndex]
+        comments[rootIndex] = if (root.id == updated.id) updated.copy(replies = root.replies)
+        else root.copy(replies = root.replies.map { if (it.id == updated.id) updated else it })
+    }
+    fun toggleCommentLike(comment: FeedComment) {
+        val id = postId ?: return
+        if (likingComments[comment.id] == true) return
+        val target = !comment.liked
+        updateComment(comment.copy(liked = target, likeCount = (comment.likeCount + if (target) 1 else -1).coerceAtLeast(0)))
+        likingComments[comment.id] = true
+        scope.launch {
+            try { updateComment(repository.likeComment(id, comment.id, target)) }
+            catch (e: CancellationException) { updateComment(comment); throw e }
+            catch (e: Exception) { updateComment(comment); error = e.message }
+            finally { likingComments.remove(comment.id) }
+        }
+    }
+    fun togglePostLike(current: FeedPost) {
+        if (likingPost) return
+        val target = !current.liked
+        post = current.copy(liked = target, likeCount = (current.likeCount + if (target) 1 else -1).coerceAtLeast(0))
+        postMutationVersion++
+        likingPost = true
+        scope.launch {
+            try { post = repository.like(current.id, target).copy(media = current.media) }
+            catch (e: CancellationException) { post = current; throw e }
+            catch (e: Exception) { post = current; error = e.message }
+            finally { likingPost = false }
+        }
+    }
+    fun addCommentLocally(comment: FeedComment) {
+        val parentId = comment.parentId
+        if (parentId == null) {
+            if (comments.none { it.id == comment.id }) comments.add(0, comment)
+        } else {
+            val index = comments.indexOfFirst { it.id == parentId }
+            if (index >= 0 && comments[index].replies.none { it.id == comment.id }) {
+                comments[index] = comments[index].copy(replies = comments[index].replies + comment)
+            }
+        }
+    }
+    fun removeCommentLocally(commentId: String) {
+        val rootIndex = comments.indexOfFirst { it.id == commentId || it.replies.any { reply -> reply.id == commentId } }
+        if (rootIndex < 0) return
+        if (comments[rootIndex].id == commentId) comments.removeAt(rootIndex)
+        else comments[rootIndex] = comments[rootIndex].copy(replies = comments[rootIndex].replies.filterNot { it.id == commentId })
+    }
     suspend fun load() {
         val id = postId ?: return
-        loading = true; error = null
-        try {
-            post = repository.get(id)
-            val page = repository.comments(id)
-            comments.clear(); comments.addAll(page.items); cursor = page.nextCursor
-        } catch (e: CancellationException) { throw e }
-        catch (e: Exception) { error = e.message ?: "Cannot load post." }
-        finally { loading = false }
+        loadingPost = post == null; loadingComments = cachedCommentPage == null; commentsRefreshing = true; error = null
+        val versionAtStart = postMutationVersion
+        supervisorScope {
+            val postRequest = async {
+                try { Result.success(repository.get(id)) }
+                catch (e: CancellationException) { throw e }
+                catch (e: Exception) { Result.failure(e) }
+            }
+            val commentsRequest = async {
+                try { Result.success(repository.comments(id)) }
+                catch (e: CancellationException) { throw e }
+                catch (e: Exception) { Result.failure(e) }
+            }
+            postRequest.await().fold(
+                onSuccess = { latest ->
+                    val current = post
+                    val media = current?.media?.takeIf { it.map(FeedMedia::id) == latest.media.map(FeedMedia::id) } ?: latest.media
+                    post = if (current != null && postMutationVersion != versionAtStart) {
+                        latest.copy(media = media, likeCount = current.likeCount, commentCount = current.commentCount, liked = current.liked)
+                    } else latest.copy(media = media)
+                },
+                onFailure = { error = it.message ?: "Cannot refresh post." },
+            )
+            loadingPost = false
+            commentsRequest.await().fold(
+                onSuccess = { page ->
+                    comments.clear(); comments.addAll(page.items); cursor = page.nextCursor
+                    commentsAddedDuringLoad.values.forEach(::addCommentLocally)
+                },
+                onFailure = { error = it.message ?: "Cannot load comments." },
+            )
+            loadingComments = false
+            commentsRefreshing = false
+            commentsAddedDuringLoad.clear()
+        }
     }
     LaunchedEffect(postId) { load() }
     val ime = WindowInsets.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current)
     LaunchedEffect(ime) { if (ime > 0 && comments.isNotEmpty()) list.animateScrollToItem(comments.size + 1) }
     Column(Modifier.fillMaxSize().background(LinkCanvas).imePadding()) {
         ScreenHeader("Post", onBack)
-        if (loading && post == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        if (loadingPost && post == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         else LazyColumn(state = list, modifier = Modifier.weight(1f)) {
             post?.let { current -> item {
-                PostCard(current, {}, onLike = { scope.launch {
-                    try { post = repository.like(current.id, !current.liked) }
-                    catch (e: CancellationException) { throw e }
-                    catch (e: Exception) { error = e.message }
-                } }, onShare = {
+                PostCard(current, {}, onLike = { togglePostLike(current) }, onShare = {
                     context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, current.content) }, "Share post"))
-                }, showAllMedia = true, onDelete = if (current.author.id == me?.id) {{ confirmDeletePost = true }} else null)
+                }, likeEnabled = !likingPost, showAllMedia = true, onDelete = if (current.author.id == me?.id) {{ confirmDeletePost = true }} else null)
             } }
             item {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("Comments", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    if (loadingComments) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 11.sp) }
                 }
             }
             items(comments, key = { it.id }) { comment ->
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 7.dp)) {
-                    UserAvatar(comment.author.avatarUrl, comment.author.initials, 34)
-                    Column(Modifier.weight(1f).padding(start = 8.dp).clip(RoundedCornerShape(12.dp)).background(Color.White).padding(10.dp)) {
-                        Text(comment.author.name, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        Text(comment.content)
-                        Text(relativePostTime(comment.createdAt), color = LinkMuted, fontSize = 10.sp)
-                    }
-                    if (comment.author.id == me?.id) TextButton(onClick = { deletingComment = comment }) { Text("Delete", fontSize = 11.sp) }
-                }
+                PostCommentThread(comment, me?.id.orEmpty(), likingComments, onReply = { replyingTo = it }, onDelete = { deletingComment = it }, onLike = ::toggleCommentLike)
             }
             if (cursor != null) item { TextButton(onClick = { scope.launch {
                 try {
@@ -346,22 +440,57 @@ fun PostDetailScreen(postId: String?, me: UserResponse?, repository: PostReposit
                 } catch (e: CancellationException) { throw e }
                 catch (e: Exception) { error = e.message }
             } }) { Text("Load older comments") } }
-            if (!loading && comments.isEmpty()) item { Text("Be the first to comment.", color = LinkMuted, modifier = Modifier.padding(16.dp)) }
+            if (!loadingComments && comments.isEmpty()) item { Text("Be the first to comment.", color = LinkMuted, modifier = Modifier.padding(16.dp)) }
         }
-        if (post != null && me != null) Row(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            LinkUpField(text, { if (it.length <= 1000) { text = it; requestId = UUID.randomUUID().toString() } }, "Write a comment…", Modifier.weight(1f))
-            Text(if (sending) " … " else " Send ", color = LinkPurple, fontWeight = FontWeight.Bold, modifier = Modifier.clickable(enabled = !sending && text.isNotBlank()) {
-                val id = postId ?: return@clickable
-                sending = true; error = null
-                scope.launch {
-                    try {
-                        val result = repository.comment(id, AddFeedComment(requestId, text.trim()))
-                        comments.add(0, result); text = ""; requestId = UUID.randomUUID().toString(); post = repository.get(id); list.animateScrollToItem(2)
-                    } catch (e: CancellationException) { throw e }
-                    catch (e: Exception) { error = e.message }
-                    finally { sending = false }
+        if (post != null && me != null) Column(Modifier.fillMaxWidth().background(Color.White).navigationBarsPadding()) {
+            replyingTo?.let { target ->
+                Row(Modifier.fillMaxWidth().background(LinkPurpleSoft.copy(alpha = .45f)).padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Replying to ${target.author.name}", color = LinkPurple, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { replyingTo = null }) { Text("Cancel", fontSize = 11.sp) }
                 }
-            }.padding(8.dp))
+            }
+            Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                LinkUpField(text, { if (it.length <= 1000) text = it }, if (replyingTo == null) "Write a comment…" else "Write a reply…", Modifier.weight(1f))
+                Text(" Send ", color = LinkPurple, fontWeight = FontWeight.Bold, modifier = Modifier.clickable(enabled = text.isNotBlank()) {
+                    val id = postId ?: return@clickable
+                    val parentId = replyingTo?.let { it.parentId ?: it.id }
+                    val commentId = requestId
+                    val draft = text.trim()
+                    val pending = FeedComment(
+                        id = commentId,
+                        author = FeedAuthor(me.id, me.username, me.fullName?.takeIf(String::isNotBlank) ?: me.username),
+                        content = draft,
+                        createdAt = Instant.now().toString(),
+                        parentId = parentId,
+                    )
+                    addCommentLocally(pending)
+                    if (commentsRefreshing) commentsAddedDuringLoad[commentId] = pending
+                    post = post?.let { it.copy(commentCount = it.commentCount + 1) }
+                    postMutationVersion++
+                    text = ""; replyingTo = null; requestId = UUID.randomUUID().toString(); error = null
+                    scope.launch {
+                        try {
+                            val saved = repository.comment(id, AddFeedComment(commentId, draft, parentId))
+                            commentsAddedDuringLoad[commentId] = saved
+                            updateComment(saved)
+                            if (!commentsRefreshing) commentsAddedDuringLoad.remove(commentId)
+                        } catch (e: CancellationException) {
+                            commentsAddedDuringLoad.remove(commentId); removeCommentLocally(commentId)
+                            post = post?.let { it.copy(commentCount = (it.commentCount - 1).coerceAtLeast(0)) }; postMutationVersion++
+                            throw e
+                        }
+                        catch (e: Exception) {
+                            commentsAddedDuringLoad.remove(commentId)
+                            removeCommentLocally(commentId)
+                            post = post?.let { it.copy(commentCount = (it.commentCount - 1).coerceAtLeast(0)) }
+                            postMutationVersion++
+                            if (text.isBlank()) text = draft
+                            error = e.message
+                        }
+                    }
+                    scope.launch { runCatching { list.animateScrollToItem(2) } }
+                }.padding(8.dp))
+            }
         }
     }
     if (confirmDeletePost) AlertDialog(onDismissRequest = { confirmDeletePost = false }, title = { Text("Delete this post?") }, text = { Text("Its photos, likes and comments will be removed.") },
@@ -372,10 +501,61 @@ fun PostDetailScreen(postId: String?, me: UserResponse?, repository: PostReposit
         } }) { Text("Delete") } }, dismissButton = { TextButton(onClick = { confirmDeletePost = false }) { Text("Cancel") } })
     deletingComment?.let { comment -> AlertDialog(onDismissRequest = { deletingComment = null }, title = { Text("Delete comment?") },
         confirmButton = { TextButton(onClick = { deletingComment = null; scope.launch {
-            try { repository.deleteComment(postId!!, comment.id); comments.removeAll { it.id == comment.id }; post = repository.get(postId) }
+            try {
+                repository.deleteComment(postId!!, comment.id)
+                val rootIndex = comments.indexOfFirst { it.id == comment.id || it.replies.any { reply -> reply.id == comment.id } }
+                if (rootIndex >= 0) {
+                    if (comments[rootIndex].id == comment.id) comments.removeAt(rootIndex)
+                    else comments[rootIndex] = comments[rootIndex].copy(replies = comments[rootIndex].replies.filterNot { it.id == comment.id })
+                }
+                if (replyingTo?.id == comment.id) replyingTo = null
+                post = post?.let { it.copy(commentCount = (it.commentCount - 1).coerceAtLeast(0)) }
+            }
             catch (e: CancellationException) { throw e }
             catch (e: Exception) { error = e.message }
         } }) { Text("Delete") } }, dismissButton = { TextButton(onClick = { deletingComment = null }) { Text("Cancel") } }) }
+}
+
+@Composable private fun PostCommentThread(
+    root: FeedComment,
+    me: String,
+    liking: Map<String, Boolean>,
+    onReply: (FeedComment) -> Unit,
+    onDelete: (FeedComment) -> Unit,
+    onLike: (FeedComment) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        PostCommentRow(root, me, nested = false, liking[root.id] != true, onReply, onDelete, onLike)
+        root.replies.forEach { reply -> PostCommentRow(reply, me, nested = true, liking[reply.id] != true, onReply, onDelete, onLike) }
+    }
+}
+
+@Composable private fun PostCommentRow(
+    comment: FeedComment,
+    me: String,
+    nested: Boolean,
+    likeEnabled: Boolean,
+    onReply: (FeedComment) -> Unit,
+    onDelete: (FeedComment) -> Unit,
+    onLike: (FeedComment) -> Unit,
+) {
+    Row(Modifier.fillMaxWidth().padding(start = if (nested) 52.dp else 16.dp, end = 16.dp, top = 5.dp, bottom = 5.dp)) {
+        UserAvatar(comment.author.avatarUrl, comment.author.initials, if (nested) 28 else 34)
+        Column(Modifier.weight(1f).padding(start = 8.dp)) {
+            Column(Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).padding(10.dp)) {
+                Text(comment.author.name, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text(comment.content)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(relativePostTime(comment.createdAt), color = LinkMuted, fontSize = 10.sp)
+                TextButton(onClick = { onLike(comment) }, enabled = likeEnabled) {
+                    Text("${if (comment.liked) "♥" else "♡"} ${comment.likeCount}", color = if (comment.liked) LinkPurple else LinkMuted, fontSize = 11.sp)
+                }
+                TextButton(onClick = { onReply(comment) }) { Text("Reply", fontSize = 11.sp) }
+                if (comment.author.id == me) TextButton(onClick = { onDelete(comment) }) { Text("Delete", fontSize = 11.sp) }
+            }
+        }
+    }
 }
 
 @Composable private fun UserAvatar(url: String?, initials: String, size: Int) {

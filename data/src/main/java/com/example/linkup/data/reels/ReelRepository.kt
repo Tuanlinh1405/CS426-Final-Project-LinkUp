@@ -22,6 +22,7 @@ interface ReelRepository {
     suspend fun hide(id: String, hidden: Boolean = true)
     suspend fun comments(id: String, cursor: String? = null): CommentPage
     suspend fun comment(id: String, comment: AddComment): ReelComment
+    suspend fun likeComment(id: String, commentId: String, liked: Boolean): ReelComment
     suspend fun deleteComment(id: String, commentId: String)
     suspend fun upload(id: String, caption: String, video: File, thumbnail: File?, progress: (Float) -> Unit): Reel
     fun watch(id: String, event: WatchEvent)
@@ -53,6 +54,8 @@ class ReelRepositoryImpl(private val api: ReelApi = ApiClient.retrofit.create(Re
     override suspend fun hide(id: String, hidden: Boolean) { (if (hidden) api.hide(id) else api.unhide(id)).requireSuccess() }
     override suspend fun comments(id: String, cursor: String?) = api.comments(id, cursor).bodyOrThrow()
     override suspend fun comment(id: String, comment: AddComment) = api.comment(id, comment).bodyOrThrow()
+    override suspend fun likeComment(id: String, commentId: String, liked: Boolean) =
+        (if (liked) api.likeComment(id, commentId) else api.unlikeComment(id, commentId)).bodyOrThrow()
     override suspend fun deleteComment(id: String, commentId: String) { api.deleteComment(id, commentId).requireSuccess() }
     override suspend fun upload(id: String, caption: String, video: File, thumbnail: File?, progress: (Float) -> Unit): Reel {
         val text = "text/plain".toMediaType()

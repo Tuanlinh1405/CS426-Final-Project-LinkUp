@@ -25,9 +25,18 @@ import kotlinx.serialization.Transient
     val liked: Boolean,
 )
 @Serializable data class PostPage(val items: List<PostDto>, val nextCursor: String? = null)
-@Serializable data class PostCommentDto(val id: String, val author: PostAuthor, val content: String, val createdAt: String)
+@Serializable data class PostCommentDto(
+    val id: String,
+    val author: PostAuthor,
+    val content: String,
+    val createdAt: String,
+    val parentId: String? = null,
+    val likeCount: Long = 0,
+    val liked: Boolean = false,
+    val replies: List<PostCommentDto> = emptyList(),
+)
 @Serializable data class PostCommentPage(val items: List<PostCommentDto>, val nextCursor: String? = null)
-@Serializable data class AddPostComment(val id: String, val content: String)
+@Serializable data class AddPostComment(val id: String, val content: String, val parentId: String? = null)
 @Serializable data class PostApiError(val message: String)
 
 class PostFailure(val status: Int, override val message: String) : RuntimeException(message)

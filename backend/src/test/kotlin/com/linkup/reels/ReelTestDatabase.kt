@@ -15,6 +15,7 @@ class ReelTestDatabase {
                 CREATE TABLE users(id UUID PRIMARY KEY, username VARCHAR(50), full_name VARCHAR(100));
                 CREATE TABLE profiles(user_id UUID PRIMARY KEY REFERENCES users(id), avatar_url TEXT);
                 CREATE TABLE follows(follower_id UUID, following_id UUID, PRIMARY KEY(follower_id,following_id));
+                CREATE TABLE notifications(id UUID PRIMARY KEY,recipient_id UUID,actor_id UUID,type VARCHAR(50),target_id UUID,created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);
                 CREATE TABLE reels(id UUID PRIMARY KEY,author_id UUID NOT NULL REFERENCES users(id),caption TEXT,
                     video_url TEXT NOT NULL,thumbnail_url TEXT,duration INT,width INT,height INT,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);
@@ -28,6 +29,8 @@ class ReelTestDatabase {
             val durationMigration = javaClass.getResource("/db/migrations/003_reels_unbounded_duration.sql")!!.readText()
             durationMigration.lineSequence().filterNot { it.trimStart().startsWith("--") }.joinToString("\n")
                 .split(';').filter(String::isNotBlank).forEach { db.createStatement().use { statement -> statement.execute(it) } }
+            db.createStatement().use { it.execute("ALTER TABLE reel_comments ADD COLUMN parent_comment_id UUID REFERENCES reel_comments(id) ON DELETE CASCADE") }
+            db.createStatement().use { it.execute("CREATE TABLE reel_comment_reactions(comment_id UUID REFERENCES reel_comments(id) ON DELETE CASCADE,user_id UUID REFERENCES users(id),created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(comment_id,user_id))") }
             db.update("INSERT INTO users(id,username,full_name) VALUES(?,?,?)", alice, "alice", "Alice")
             db.update("INSERT INTO users(id,username,full_name) VALUES(?,?,?)", bob, "bob", "Bob")
             db.commit()

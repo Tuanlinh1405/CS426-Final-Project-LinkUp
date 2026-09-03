@@ -73,3 +73,21 @@ tasks.register<JavaExec>("reelsDurationMigration") {
     workingDir(projectDir)
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(17)) })
 }
+
+tasks.register<JavaExec>("searchRepliesMigration") {
+    group = "database"
+    description = "Explicitly apply migration 004 for Post/Reel comment replies. Requires --args=--confirm."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.linkup.database.SearchRepliesMigrationKt")
+    workingDir(projectDir)
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(17)) })
+}
+
+tasks.register<JavaExec>("commentReactionsMigration") {
+    group = "database"
+    description = "Explicitly apply migration 005 for Post/Reel comment likes. Requires --args=--confirm."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.linkup.database.CommentReactionsMigrationKt")
+    workingDir(projectDir)
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(17)) })
+}

@@ -32,7 +32,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
-fun ReelsScreen(repository: ReelRepository, me: UserResponse?, onUpload: () -> Unit, onSignIn: () -> Unit) {
+fun ReelsScreen(repository: ReelRepository, me: UserResponse?, onUpload: () -> Unit, onSignIn: () -> Unit, initialReelId: String? = null) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val items = remember { mutableStateListOf<Reel>() }
@@ -49,6 +49,8 @@ fun ReelsScreen(repository: ReelRepository, me: UserResponse?, onUpload: () -> U
     var muted by rememberSaveable { mutableStateOf(false) }
     val readyReels = remember { mutableStateMapOf<String, Boolean>() }
     val pager = rememberPagerState { items.size }
+    // If startup prefetch is still running, give the Reel the user opened absolute priority.
+    LaunchedEffect(Unit) { ReelVideoCache.cancelWarmups() }
     fun replace(reel: Reel) { val index = items.indexOfFirst { it.id == reel.id }; if (index >= 0) items[index] = reel }
     fun action(id: String, block: suspend () -> Unit) {
         if (busy != null) return
@@ -59,12 +61,33 @@ fun ReelsScreen(repository: ReelRepository, me: UserResponse?, onUpload: () -> U
             finally { busy = null }
         }
     }
-    LaunchedEffect(author, refresh, me?.id) {
+    fun toggleLike(reel: Reel) {
+        if (busy != null) return
+        val target = !reel.liked
+        replace(reel.copy(liked = target, likeCount = (reel.likeCount + if (target) 1 else -1).coerceAtLeast(0)))
+        busy = reel.id
+        scope.launch {
+            try {
+                val server = repository.like(reel.id, target)
+                // Reaction responses contain a newly signed URL. Preserve the playing URI so
+                // Compose/Media3 does not recreate and rebuffer the player after every tap.
+                replace(server.copy(videoUrl = reel.videoUrl, thumbnailUrl = reel.thumbnailUrl))
+            } catch (e: CancellationException) { replace(reel); throw e }
+            catch (e: Exception) { replace(reel); error = e.message ?: "Please retry." }
+            finally { busy = null }
+        }
+    }
+    LaunchedEffect(author, refresh, me?.id, initialReelId) {
         if (me == null) { items.clear(); next = null; loading = false; return@LaunchedEffect }
         loading = true; error = null; next = null; items.clear(); readyReels.clear()
         try {
+            if (author == null && initialReelId != null) {
+                try { items.add(repository.get(initialReelId)) }
+                catch (e: CancellationException) { throw e }
+                catch (_: Exception) { /* The regular feed still works if a search result was removed. */ }
+            }
             val page = repository.feed(author = author)
-            items.addAll(page.items); next = page.nextCursor
+            items.addAll(page.items.filter { candidate -> items.none { it.id == candidate.id } }); next = page.nextCursor
             if (items.isNotEmpty()) pager.scrollToPage(0)
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { error = e.message ?: "Cannot load reels." }
@@ -123,7 +146,7 @@ fun ReelsScreen(repository: ReelRepository, me: UserResponse?, onUpload: () -> U
                 }
                 Column(Modifier.align(Alignment.BottomEnd).padding(end = 8.dp, bottom = 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     ReelAction(if (reel.liked) "♥" else "♡", reel.likeCount.toString(), if (reel.liked) Color(0xFFFF5078) else Color.White, busy == null) {
-                        action(reel.id) { replace(repository.like(reel.id, !reel.liked)) }
+                        toggleLike(reel)
                     }
                     ReelAction("💬", reel.commentCount.toString()) { commentReel = reel }
                     ReelAction("↗", "Share") {
@@ -159,7 +182,10 @@ fun ReelsScreen(repository: ReelRepository, me: UserResponse?, onUpload: () -> U
         }
         if (items.isNotEmpty() && !loading) TextButton(onClick = { refresh++ }, modifier = Modifier.align(Alignment.TopStart).padding(top = if (author == null) 50.dp else 92.dp)) { Text("↻", color = Color.White) }
     }
-    commentReel?.let { reel -> ReelCommentsSheet(reel, me?.id.orEmpty(), repository, onDismiss = { commentReel = null }, onChanged = { scope.launch { runCatching { repository.get(reel.id) }.onSuccess(::replace) } }) }
+    commentReel?.let { reel -> ReelCommentsSheet(reel, me?.id.orEmpty(), repository, onDismiss = { commentReel = null }, onChanged = { delta ->
+        val index = items.indexOfFirst { it.id == reel.id }
+        if (index >= 0) items[index] = items[index].copy(commentCount = (items[index].commentCount + delta).coerceAtLeast(0))
+    }) }
     deleteReel?.let { reel -> AlertDialog(onDismissRequest = { deleteReel = null }, title = { Text("Delete this reel?") }, text = { Text("Its video, likes and comments will be removed.") },
         confirmButton = { TextButton(onClick = { deleteReel = null; action(reel.id) { repository.delete(reel.id); items.removeAll { it.id == reel.id } } }) { Text("Delete") } },
         dismissButton = { TextButton(onClick = { deleteReel = null }) { Text("Cancel") } }) }
