@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.data.model.Notification
 import com.example.linkup.data.model.NotificationType
@@ -87,7 +89,7 @@ fun NotificationAvatar(
                 }
 
                 else -> AsyncImage(
-                    model = notification.actor.avatarUrl,
+                    model = fadeInRequest(notification.actor.avatarUrl),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize().clip(CircleShape).background(AvatarFallbackBrush)
@@ -164,3 +166,16 @@ fun NotificationBadge(count: Int, modifier: Modifier = Modifier) {
         )
     }
 }
+
+/**
+ * Wraps a URL so Coil fades the decoded image in.
+ *
+ * Without this an avatar snaps from placeholder to photo the instant it decodes,
+ * which reads as a flicker while a list scrolls.
+ */
+@Composable
+internal fun fadeInRequest(url: String?): ImageRequest =
+    ImageRequest.Builder(LocalContext.current)
+        .data(url)
+        .crossfade(true)
+        .build()

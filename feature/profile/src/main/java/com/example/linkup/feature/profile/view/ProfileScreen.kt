@@ -1,5 +1,10 @@
 package com.example.linkup.feature.profile.view
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -35,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +52,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.linkup.core.designsystem.component.FriendControls
 import com.example.linkup.core.designsystem.icon.LinkUpIcons
+import com.example.linkup.core.designsystem.motion.Motion
+import com.example.linkup.core.designsystem.motion.rememberShimmerBrush
 import com.example.linkup.core.designsystem.component.ScreenHeader
 import com.example.linkup.core.designsystem.theme.LinkDivider
 import com.example.linkup.core.designsystem.theme.LinkMuted
@@ -94,24 +102,38 @@ fun ProfileScreen(
     LaunchedEffect(userId) { viewModel.load(userId) }
 
     Box(modifier.fillMaxSize()) {
-        when (val state = uiState) {
+        val phase = when (uiState) {
+            is ProfileUiState.Loading -> ProfilePhase.LOADING
+            is ProfileUiState.Error -> ProfilePhase.ERROR
+            is ProfileUiState.Ready -> ProfilePhase.READY
+        }
+
+        AnimatedContent(
+            targetState = phase,
+            transitionSpec = {
+                fadeIn(tween(Motion.MEDIUM_MS)) togetherWith fadeOut(tween(Motion.QUICK_MS))
+            },
+            label = "profilePhase"
+        ) { target ->
+            when (target) {
             // The skeleton and the error page keep a visible way back: without the
             // header, a profile that fails to load strands the user on a dead screen
             // with nothing but the system gesture to escape it.
-            is ProfileUiState.Loading -> Column(Modifier.fillMaxSize()) {
+            ProfilePhase.LOADING -> Column(Modifier.fillMaxSize()) {
                 if (onBack != null) ScreenHeader(title = "Profile", onBack = onBack)
                 ProfileSkeleton()
             }
 
-            is ProfileUiState.Error -> Column(Modifier.fillMaxSize()) {
+            ProfilePhase.ERROR -> Column(Modifier.fillMaxSize()) {
                 if (onBack != null) ScreenHeader(title = "Profile", onBack = onBack)
                 ProfileErrorState(
-                    message = state.message,
+                    message = (uiState as? ProfileUiState.Error)?.message.orEmpty(),
                     onRetry = { viewModel.load(userId, force = true) }
                 )
             }
 
-            is ProfileUiState.Ready -> ProfileContent(
+            ProfilePhase.READY -> (uiState as? ProfileUiState.Ready)?.let { state ->
+                ProfileContent(
                 state = state,
                 onEdit = onEdit,
                 onSettings = onSettings,
@@ -129,10 +151,15 @@ fun ProfileScreen(
                     onDecline = viewModel::declineFriendRequest,
                     onUnfriend = viewModel::unfriend
                 )
-            )
+                )
+            }
+            }
         }
     }
 }
+
+/** Which of the three states the screen is in — the key the cross-fade animates on. */
+private enum class ProfilePhase { LOADING, ERROR, READY }
 
 @Composable
 private fun ProfileContent(
@@ -492,6 +519,7 @@ private fun InlineBanner(text: String, onDismiss: () -> Unit) {
 /** Placeholder blocks matching the real layout, so loading does not shift content. */
 @Composable
 private fun ProfileSkeleton() {
+    val shimmer = rememberShimmerBrush()
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxWidth()) {
             Box(
@@ -499,7 +527,7 @@ private fun ProfileSkeleton() {
                     .fillMaxWidth()
                     .height(COVER_HEIGHT)
                     .padding(bottom = AVATAR_OVERHANG)
-                    .background(LinkDivider)
+                    .background(shimmer)
             )
             Box(
                 Modifier
@@ -510,31 +538,31 @@ private fun ProfileSkeleton() {
                     .background(Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                Box(Modifier.size(AVATAR_SIZE).clip(CircleShape).background(LinkDivider))
+                Box(Modifier.size(AVATAR_SIZE).clip(CircleShape).background(shimmer))
             }
         }
         Column(Modifier.padding(20.dp)) {
-            SkeletonBar(180.dp, 22.dp)
+            SkeletonBar(180.dp, 22.dp, shimmer)
             Spacer(Modifier.height(10.dp))
-            SkeletonBar(110.dp, 14.dp)
+            SkeletonBar(110.dp, 14.dp, shimmer)
             Spacer(Modifier.height(18.dp))
-            SkeletonBar(260.dp, 14.dp)
+            SkeletonBar(260.dp, 14.dp, shimmer)
             Spacer(Modifier.height(8.dp))
-            SkeletonBar(200.dp, 14.dp)
+            SkeletonBar(200.dp, 14.dp, shimmer)
             Spacer(Modifier.height(24.dp))
-            SkeletonBar(320.dp, 44.dp)
+            SkeletonBar(320.dp, 44.dp, shimmer)
         }
     }
 }
 
 @Composable
-private fun SkeletonBar(width: Dp, height: Dp) {
+private fun SkeletonBar(width: Dp, height: Dp, brush: Brush) {
     Box(
         Modifier
             .width(width)
             .height(height)
             .clip(RoundedCornerShape(6.dp))
-            .background(LinkDivider)
+            .background(brush)
     )
 }
 

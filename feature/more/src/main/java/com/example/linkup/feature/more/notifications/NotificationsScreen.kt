@@ -46,7 +46,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.linkup.core.designsystem.component.AnimatedBanner
 import com.example.linkup.core.designsystem.component.ChoiceChip
+import com.example.linkup.core.designsystem.motion.rememberShimmerBrush
 import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.theme.LinkDivider
 import com.example.linkup.core.designsystem.theme.LinkMuted
@@ -104,9 +106,11 @@ fun NotificationsScreen(
             }
         }
 
-        state.message?.let { message ->
-            FeedbackStrip(message, state.messageIsError, viewModel::consumeMessage)
-        }
+        AnimatedBanner(
+            message = state.message,
+            isError = state.messageIsError,
+            onDismiss = viewModel::consumeMessage
+        )
 
         when {
             state.isLoading -> NotificationSkeleton()
@@ -251,6 +255,7 @@ private fun NotificationList(
                 SectionHeader(RelativeTime.bucketLabel(bucket))
             }
             items(items, key = { it.id }) { notification ->
+                Column(Modifier.animateItem()) {
                 NotificationRow(
                     notification = notification,
                     now = now,
@@ -260,6 +265,7 @@ private fun NotificationList(
                     onDelete = { onDelete(notification) }
                 )
                 HorizontalDivider(color = LinkDivider.copy(alpha = 0.6f))
+                    }
             }
         }
 
@@ -360,28 +366,6 @@ private fun SectionHeader(text: String) {
 }
 
 @Composable
-private fun FeedbackStrip(message: String, isError: Boolean, onDismiss: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (isError) Color(0xFFFDECEF) else Color(0xFFE9F7EF))
-            .padding(horizontal = 12.dp, vertical = 9.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        val foreground = if (isError) Color(0xFFB3261E) else Color(0xFF1B7A43)
-        Text(message, color = foreground, fontSize = 13.sp, modifier = Modifier.weight(1f))
-        Icon(
-            imageVector = LinkUpIcons.Close,
-            contentDescription = "Dismiss",
-            tint = foreground,
-            modifier = Modifier.clickable(onClick = onDismiss).padding(start = 8.dp).size(15.dp)
-        )
-    }
-}
-
-@Composable
 private fun NotificationEmptyState(filter: NotificationFilter) {
     val (title, body) = if (filter == NotificationFilter.UNREAD) {
         "You're all caught up" to "Every notification has been read. Switch to All to see your history."
@@ -438,22 +422,23 @@ private fun NotificationErrorState(message: String, onRetry: () -> Unit) {
 /** Placeholder rows shaped like the real ones, so loading does not jump. */
 @Composable
 private fun NotificationSkeleton() {
+    val shimmer = rememberShimmerBrush()
     Column(Modifier.fillMaxSize()) {
         repeat(7) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(Modifier.size(48.dp).clip(CircleShape).background(LinkDivider))
+                Box(Modifier.size(48.dp).clip(CircleShape).background(shimmer))
                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
                     Box(
                         Modifier.fillMaxWidth(0.85f).height(13.dp)
-                            .clip(RoundedCornerShape(4.dp)).background(LinkDivider)
+                            .clip(RoundedCornerShape(4.dp)).background(shimmer)
                     )
                     Spacer(Modifier.height(7.dp))
                     Box(
                         Modifier.width(56.dp).height(10.dp)
-                            .clip(RoundedCornerShape(4.dp)).background(LinkDivider)
+                            .clip(RoundedCornerShape(4.dp)).background(shimmer)
                     )
                 }
             }

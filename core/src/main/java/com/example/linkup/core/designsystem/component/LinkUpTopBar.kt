@@ -1,5 +1,11 @@
 package com.example.linkup.core.designsystem.component
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -128,7 +134,12 @@ private fun TopAction(
                 modifier = Modifier.size(20.dp)
             )
         }
-        if (badgeCount > 0) {
+        // A count that appears mid-session should grow into place, not blink on.
+        AnimatedVisibility(
+            visible = badgeCount > 0,
+            enter = scaleIn(tween(180)) + fadeIn(tween(180)),
+            exit = scaleOut(tween(140)) + fadeOut(tween(140))
+        ) {
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))

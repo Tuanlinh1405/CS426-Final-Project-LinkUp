@@ -1,6 +1,14 @@
 package com.example.linkup.app
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -21,6 +29,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.linkup.core.designsystem.component.LinkUpBottomBar
 import com.example.linkup.core.navigation.AppNavigator
 import com.example.linkup.core.navigation.AppRoute
+import com.example.linkup.core.navigation.NavDirection
 import com.example.linkup.data.model.Conversation
 import com.example.linkup.data.model.Post
 import com.example.linkup.data.repository.FakeLinkUpRepository
@@ -86,7 +95,12 @@ fun LinkUpApp() {
     var selectedPost by remember { mutableStateOf<Post?>(null) }
     var selectedConversation by remember { mutableStateOf<Conversation?>(null) }
 
-    fun sync() { current = navigator.current; currentArg = navigator.currentArg }
+    var navDirection by remember { mutableStateOf(navigator.direction) }
+    fun sync() {
+        current = navigator.current
+        currentArg = navigator.currentArg
+        navDirection = navigator.direction
+    }
     fun goTo(route: AppRoute, arg: String? = null) { navigator.goTo(route, arg); sync() }
     fun replace(route: AppRoute) { navigator.replace(route); sync() }
     fun reset(route: AppRoute) { navigator.reset(route); sync() }
@@ -140,7 +154,34 @@ fun LinkUpApp() {
                 .padding(padding)
                 .consumeWindowInsets(padding)
         ) {
-            when (current) {
+            // Screens slide the way the user is travelling: forward pushes in from
+            // the right, back returns to the left, and a replace cross-fades because
+            // neither direction would mean anything. The outgoing screen moves only a
+            // quarter of the width, which reads as depth rather than two sliding cards.
+            AnimatedContent(
+                targetState = Screen(current, currentArg),
+                transitionSpec = {
+                    when (navDirection) {
+                        NavDirection.REPLACE ->
+                            fadeIn(tween(SCREEN_FADE_MS)) togetherWith
+                                fadeOut(tween(SCREEN_FADE_MS))
+
+                        else -> {
+                            val forward = navDirection == NavDirection.FORWARD
+                            val enterFrom = if (forward) 1 else -1
+                            slideInHorizontally(
+                                animationSpec = tween(SCREEN_SLIDE_MS, easing = FastOutSlowInEasing)
+                            ) { width -> enterFrom * width } + fadeIn(tween(SCREEN_FADE_MS)) togetherWith
+                                slideOutHorizontally(
+                                    animationSpec = tween(SCREEN_SLIDE_MS, easing = FastOutSlowInEasing)
+                                ) { width -> -enterFrom * width / 4 } + fadeOut(tween(SCREEN_SLIDE_MS))
+                        }
+                    }
+                },
+                label = "screen"
+            ) { screen ->
+                val currentArg = screen.arg
+                when (screen.route) {
                 AppRoute.SPLASH -> SplashScreen()
                 AppRoute.LOGIN -> LoginScreen(
                     onLoginSuccess = { sessionViewModel.onSignedIn(); reset(AppRoute.FEED) },
@@ -254,7 +295,14 @@ fun LinkUpApp() {
                     },
                     onDatingProfile = { goTo(AppRoute.DATING_PROFILE) }
                 )
+                }
             }
         }
     }
 }
+
+/** One entry in the animated stack: a destination plus what it is about. */
+private data class Screen(val route: AppRoute, val arg: String?)
+
+private const val SCREEN_SLIDE_MS = 280
+private const val SCREEN_FADE_MS = 200

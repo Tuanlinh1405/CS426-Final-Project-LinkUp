@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.linkup.core.designsystem.icon.LinkUpIcons
+import com.example.linkup.core.designsystem.component.AnimatedBanner
 import com.example.linkup.core.designsystem.component.ChoiceChip
 import com.example.linkup.core.designsystem.component.LinkUpField
 import com.example.linkup.core.designsystem.component.FriendActionState
@@ -93,25 +94,11 @@ fun SearchScreen(
             }
         }
 
-        state.message?.let { message ->
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFFFDECEF))
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(message, color = Color(0xFFB3261E), fontSize = 13.sp, modifier = Modifier.weight(1f))
-                Text(
-                    "✕",
-                    color = Color(0xFFB3261E),
-                    fontSize = 13.sp,
-                    modifier = Modifier.clickable(onClick = viewModel::consumeMessage).padding(start = 8.dp)
-                )
-            }
-        }
+        AnimatedBanner(
+            message = state.message,
+            isError = true,
+            onDismiss = viewModel::consumeMessage
+        )
 
         Spacer(Modifier.height(8.dp))
 
@@ -131,6 +118,7 @@ fun SearchScreen(
 
             else -> LazyColumn(Modifier.fillMaxSize()) {
                 items(state.results, key = { it.id }) { person ->
+                    Column(Modifier.animateItem()) {
                     PersonRow(
                         displayName = person.displayName,
                         handle = person.handle,
@@ -156,6 +144,7 @@ fun SearchScreen(
                         }
                     )
                     HorizontalDivider(color = LinkDivider.copy(alpha = 0.6f))
+                    }
                 }
 
                 if (state.hasMore) {

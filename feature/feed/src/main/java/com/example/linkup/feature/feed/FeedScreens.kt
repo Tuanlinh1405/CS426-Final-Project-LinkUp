@@ -1,5 +1,10 @@
 package com.example.linkup.feature.feed
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,12 +14,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,6 +60,7 @@ import com.example.linkup.data.model.User
 import com.example.linkup.core.designsystem.theme.LinkCanvas
 import com.example.linkup.core.designsystem.theme.LinkDivider
 import com.example.linkup.core.designsystem.theme.LinkMuted
+import com.example.linkup.core.designsystem.theme.LinkPink
 import com.example.linkup.core.designsystem.theme.LinkPurple
 import com.example.linkup.core.designsystem.theme.LinkPurpleSoft
 
@@ -143,7 +152,7 @@ fun PostCard(
         }
         HorizontalDivider(color = LinkDivider)
         Row(Modifier.fillMaxWidth().height(46.dp), verticalAlignment = Alignment.CenterVertically) {
-            PostAction(if (post.liked) "♥ Liked" else "♡ Like", Modifier.weight(1f), post.liked, onLike)
+            LikeAction(liked = post.liked, modifier = Modifier.weight(1f), onClick = onLike)
             PostAction("□ Comment", Modifier.weight(1f), onClick = onOpen)
             PostAction("↗ Share", Modifier.weight(1f))
         }
@@ -189,6 +198,44 @@ fun CreatePostScreen(me: User, onBack: () -> Unit, onPublish: (String) -> Unit) 
             Text("▧  Photo/Video", color = LinkPurple, modifier = Modifier.clickable { hasMedia = true })
         }
         PrimaryButton("Publish Post", { onPublish(content) }, Modifier.padding(16.dp), enabled = content.isNotBlank())
+    }
+}
+
+/**
+ * The like control, with a spring that overshoots on the way in.
+ *
+ * Liking is the most repeated gesture in the app; a small bounce makes it feel
+ * acknowledged without slowing anything down.
+ */
+@Composable
+private fun LikeAction(liked: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val scale by animateFloatAsState(
+        targetValue = if (liked) 1.18f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "likeScale"
+    )
+    val tint by animateColorAsState(
+        targetValue = if (liked) LinkPink else LinkMuted,
+        animationSpec = tween(180),
+        label = "likeTint"
+    )
+
+    Row(
+        modifier.fillMaxHeight().clickable(onClick = onClick),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = if (liked) LinkUpIcons.HeartFilled else LinkUpIcons.Heart,
+            contentDescription = if (liked) "Unlike" else "Like",
+            tint = tint,
+            modifier = Modifier.size(18.dp).graphicsLayer { scaleX = scale; scaleY = scale }
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(if (liked) "Liked" else "Like", color = tint, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
 }
 

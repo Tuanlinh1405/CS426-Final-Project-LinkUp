@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.linkup.core.designsystem.icon.LinkUpIcons
+import com.example.linkup.core.designsystem.component.AnimatedBanner
 import com.example.linkup.core.designsystem.component.ChoiceChip
 import com.example.linkup.core.designsystem.component.FriendControls
 import com.example.linkup.core.designsystem.component.PersonRow
@@ -88,10 +89,11 @@ fun FriendsScreen(
             ) { viewModel.setTab(FriendsTab.SUGGESTIONS) }
         }
 
-        state.message?.let { message ->
-            FeedbackStrip(message, state.messageIsError, viewModel::consumeMessage)
-            Spacer(Modifier.height(8.dp))
-        }
+        AnimatedBanner(
+            message = state.message,
+            isError = state.messageIsError,
+            onDismiss = viewModel::consumeMessage
+        )
 
         when {
             state.isLoading -> PersonRowSkeleton()
@@ -105,6 +107,7 @@ fun FriendsScreen(
 
             else -> LazyColumn(Modifier.fillMaxSize()) {
                 items(state.items, key = { it.id }) { person ->
+                    Column(Modifier.animateItem()) {
                     FriendRow(
                         person = person,
                         isBusy = person.id in state.busyIds,
@@ -112,6 +115,7 @@ fun FriendsScreen(
                         viewModel = viewModel
                     )
                     HorizontalDivider(color = LinkDivider.copy(alpha = 0.6f))
+                    }
                 }
 
                 if (state.hasMore) {
@@ -169,28 +173,6 @@ private fun FriendRow(
             )
         }
     )
-}
-
-@Composable
-private fun FeedbackStrip(message: String, isError: Boolean, onDismiss: () -> Unit) {
-    val foreground = if (isError) Color(0xFFB3261E) else Color(0xFF1B7A43)
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (isError) Color(0xFFFDECEF) else Color(0xFFE9F7EF))
-            .padding(horizontal = 12.dp, vertical = 9.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(message, color = foreground, fontSize = 13.sp, modifier = Modifier.weight(1f))
-        Text(
-            "✕",
-            color = foreground,
-            fontSize = 13.sp,
-            modifier = Modifier.clickable(onClick = onDismiss).padding(start = 8.dp)
-        )
-    }
 }
 
 @Composable

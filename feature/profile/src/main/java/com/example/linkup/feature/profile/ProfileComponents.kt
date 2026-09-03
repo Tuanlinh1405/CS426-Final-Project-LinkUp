@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.linkup.core.designsystem.component.FriendActionState
 import com.example.linkup.core.designsystem.theme.LinkDivider
 import com.example.linkup.core.designsystem.theme.LinkMuted
@@ -86,7 +88,7 @@ fun RemoteAvatar(
                 )
             } else {
                 AsyncImage(
-                    model = url,
+                    model = fadeInRequest(url),
                     contentDescription = "Profile photo",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -118,7 +120,7 @@ fun CoverPhoto(
             Box(Modifier.fillMaxSize().background(CoverFallbackBrush))
         } else {
             AsyncImage(
-                model = url,
+                model = fadeInRequest(url),
                 contentDescription = "Cover photo",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize().background(CoverFallbackBrush)
@@ -319,3 +321,16 @@ fun FriendshipStatus.friendActionState(): FriendActionState = when (this) {
     FriendshipStatus.REQUEST_RECEIVED -> FriendActionState.RESPOND
     FriendshipStatus.NONE, FriendshipStatus.UNKNOWN -> FriendActionState.ADD
 }
+
+/**
+ * Wraps a URL so Coil fades the decoded image in.
+ *
+ * Without this an avatar snaps from placeholder to photo the instant it decodes,
+ * which reads as a flicker while a list scrolls.
+ */
+@Composable
+internal fun fadeInRequest(url: String?): ImageRequest =
+    ImageRequest.Builder(LocalContext.current)
+        .data(url)
+        .crossfade(true)
+        .build()

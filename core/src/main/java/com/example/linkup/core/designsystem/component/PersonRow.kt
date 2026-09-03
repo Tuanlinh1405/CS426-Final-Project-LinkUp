@@ -1,6 +1,11 @@
 package com.example.linkup.core.designsystem.component
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -17,9 +22,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -29,6 +37,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.linkup.core.designsystem.motion.pressScale
+import com.example.linkup.core.designsystem.motion.rememberShimmerBrush
 import com.example.linkup.core.designsystem.theme.LinkDivider
 import com.example.linkup.core.designsystem.theme.LinkMuted
 import com.example.linkup.core.designsystem.theme.LinkPurple
@@ -66,7 +77,7 @@ fun CircleAvatar(
             )
         } else {
             AsyncImage(
-                model = avatarUrl,
+                model = fadeInRequest(avatarUrl),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -156,6 +167,7 @@ fun ActionPill(
         else -> LinkPurple
     }
     val background = if (filled && !danger) LinkPurple else Color.White
+    val actionInteraction = remember { MutableInteractionSource() }
     val border = when {
         danger -> LinkDivider
         filled -> LinkPurple
@@ -167,14 +179,22 @@ fun ActionPill(
             .clip(RoundedCornerShape(50))
             .background(if (enabled) background else background.copy(alpha = 0.5f))
             .border(1.dp, border, RoundedCornerShape(50))
-            .clickable(enabled = enabled && !isBusy, onClick = onClick)
+            .pressScale(actionInteraction)
+            .clickable(
+                interactionSource = actionInteraction,
+                indication = LocalIndication.current,
+                enabled = enabled && !isBusy,
+                onClick = onClick
+            )
             .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         if (isBusy) {
             CircularProgressIndicator(strokeWidth = 2.dp, color = content, modifier = Modifier.size(14.dp))
         } else {
-            Text(text, color = content, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
+            AnimatedContent(targetState = text, label = "actionLabel") { label ->
+                Text(label, color = content, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
+            }
         }
     }
 }
@@ -187,32 +207,55 @@ fun FollowPill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Colour eases between states so tapping Follow reads as one movement rather
+    // than an instant repaint.
+    val background by animateColorAsState(
+        targetValue = if (isFollowing) Color.White else LinkPurple,
+        animationSpec = tween(200),
+        label = "followBackground"
+    )
+    val border by animateColorAsState(
+        targetValue = if (isFollowing) LinkDivider else LinkPurple,
+        animationSpec = tween(200),
+        label = "followBorder"
+    )
+    val content by animateColorAsState(
+        targetValue = if (isFollowing) LinkPurple else Color.White,
+        animationSpec = tween(200),
+        label = "followContent"
+    )
+    val interactionSource = remember { MutableInteractionSource() }
+
     Box(
         modifier
             .clip(RoundedCornerShape(50))
-            .background(if (isFollowing) Color.White else LinkPurple)
-            .border(
-                width = 1.dp,
-                color = if (isFollowing) LinkDivider else LinkPurple,
-                shape = RoundedCornerShape(50)
+            .background(background)
+            .border(width = 1.dp, color = border, shape = RoundedCornerShape(50))
+            .pressScale(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                enabled = !isBusy,
+                onClick = onClick
             )
-            .clickable(enabled = !isBusy, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         if (isBusy) {
             CircularProgressIndicator(
                 strokeWidth = 2.dp,
-                color = if (isFollowing) LinkPurple else Color.White,
+                color = content,
                 modifier = Modifier.size(14.dp)
             )
         } else {
-            Text(
-                text = if (isFollowing) "Following" else "Follow",
-                color = if (isFollowing) LinkPurple else Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp
-            )
+            AnimatedContent(targetState = isFollowing, label = "followLabel") { following ->
+                Text(
+                    text = if (following) "Following" else "Follow",
+                    color = content,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
         }
     }
 }
@@ -220,25 +263,39 @@ fun FollowPill(
 /** Placeholder rows used while a people list loads. */
 @Composable
 fun PersonRowSkeleton(count: Int = 8) {
+    val shimmer = rememberShimmerBrush()
     Column(Modifier.fillMaxWidth()) {
         repeat(count) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(Modifier.size(46.dp).clip(CircleShape).background(LinkPurpleSoft))
+                Box(Modifier.size(46.dp).clip(CircleShape).background(shimmer))
                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
                     Box(
                         Modifier.fillMaxWidth(0.5f).size(14.dp)
-                            .clip(RoundedCornerShape(4.dp)).background(LinkPurpleSoft)
+                            .clip(RoundedCornerShape(4.dp)).background(shimmer)
                     )
                     Spacer(Modifier.size(6.dp))
                     Box(
                         Modifier.fillMaxWidth(0.3f).size(11.dp)
-                            .clip(RoundedCornerShape(4.dp)).background(LinkPurpleSoft)
+                            .clip(RoundedCornerShape(4.dp)).background(shimmer)
                     )
                 }
             }
         }
     }
 }
+
+/**
+ * Wraps a URL so Coil fades the decoded image in.
+ *
+ * Without this an avatar snaps from placeholder to photo the instant it decodes,
+ * which reads as a flicker while a list scrolls.
+ */
+@Composable
+internal fun fadeInRequest(url: String?): ImageRequest =
+    ImageRequest.Builder(LocalContext.current)
+        .data(url)
+        .crossfade(true)
+        .build()
