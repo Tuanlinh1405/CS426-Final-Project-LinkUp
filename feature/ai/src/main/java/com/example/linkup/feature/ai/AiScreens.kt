@@ -12,11 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +35,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.component.LinkUpField
 import com.example.linkup.core.designsystem.component.ScreenHeader
 import com.example.linkup.core.designsystem.theme.LinkCanvas
@@ -69,7 +72,7 @@ fun AiChatScreen(onBack: () -> Unit, onHistory: () -> Unit) {
         }
         Row(Modifier.fillMaxWidth().background(Color.White).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             LinkUpField(draft, { draft = it }, "Ask LinkUp AI…", Modifier.weight(1f))
-            Text("➤", color = LinkPurple, fontSize = 24.sp, modifier = Modifier.clickable {
+            Icon(LinkUpIcons.Send, "Send", tint = LinkPurple, modifier = Modifier.size(22.dp).clickable {
                 if (draft.isNotBlank()) {
                     val prompt = draft.trim()
                     val next = messages.size + 1

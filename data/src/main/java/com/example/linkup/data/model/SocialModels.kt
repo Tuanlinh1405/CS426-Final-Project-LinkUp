@@ -29,10 +29,16 @@ data class ChatMessage(
 
 data class Conversation(
     val id: String,
-    val user: User,
-    val preview: String,
-    val time: String,
-    val unread: Int = 0
+    val user: User = User(id, "User", "@user", "U"),
+    val preview: String = "",
+    val time: String = "",
+    val unread: Int = 0,
+    val type: String = "DIRECT",
+    val name: String? = null,
+    val participants: List<Participant> = emptyList(),
+    val lastMessage: Message? = null,
+    val unreadCount: Int = unread,
+    val updatedAt: String = time,
 )
 
 data class NotificationItem(

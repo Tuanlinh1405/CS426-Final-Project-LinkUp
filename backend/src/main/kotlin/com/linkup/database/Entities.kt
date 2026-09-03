@@ -12,6 +12,7 @@ class UserEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var username by UsersTable.username
     var passwordHash by UsersTable.passwordHash
     var fullName by UsersTable.fullName
+    var phone by UsersTable.phone
     var birthdate by UsersTable.birthdate
     var gender by UsersTable.gender
     var createdAt by UsersTable.createdAt
@@ -32,6 +33,8 @@ class ProfileEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     var bio by ProfilesTable.bio
     var avatarUrl by ProfilesTable.avatarUrl
     var coverUrl by ProfilesTable.coverUrl
+    var location by ProfilesTable.location
+    var website by ProfilesTable.website
     var followerCount by ProfilesTable.followerCount
     var followingCount by ProfilesTable.followingCount
     var updatedAt by ProfilesTable.updatedAt
@@ -87,6 +90,7 @@ class ReelEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 class ConversationEntity(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<ConversationEntity>(ConversationsTable)
     var type by ConversationsTable.type
+    var name by ConversationsTable.name
     var createdAt by ConversationsTable.createdAt
     var updatedAt by ConversationsTable.updatedAt
 }

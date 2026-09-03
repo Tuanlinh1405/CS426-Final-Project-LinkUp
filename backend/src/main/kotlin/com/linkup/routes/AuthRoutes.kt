@@ -54,14 +54,14 @@ fun Route.authRoutes(userRepository: UserRepository) {
 
             val user = userRepository.validateUser(request.emailOrUsername, request.password)
             if (user != null) {
-                val token = JwtService.generateToken(user.id.value.toString())
+                val token = JwtService.generateToken(user.id.toString())
                 call.respond(HttpStatusCode.OK, AuthResponse(
                     user = UserResponse(
-                        id = user.id.value.toString(),
+                        id = user.id.toString(),
                         email = user.email,
                         username = user.username,
                         fullName = user.fullName,
-                        createdAt = user.createdAt.toString()
+                        createdAt = user.createdAt
                     ),
                     token = token
                 ))

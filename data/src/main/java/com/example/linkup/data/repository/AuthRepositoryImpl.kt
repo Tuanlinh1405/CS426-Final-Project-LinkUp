@@ -38,7 +38,7 @@ class AuthRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.errorBody()?.string() ?: "Unknown login error"))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(mapException(e))
         }
     }
 
@@ -60,11 +60,24 @@ class AuthRepositoryImpl @Inject constructor(
                 Result.failure(Exception(response.errorBody()?.string() ?: "Unknown registration error"))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(mapException(e))
         }
     }
 
     override suspend fun logout() {
         authTokenDataStore.clearAuthData()
+    }
+
+    private fun mapException(e: Exception): Exception {
+        val msg = e.message ?: ""
+        return when {
+            e is java.net.SocketTimeoutException || msg.contains("timeout", ignoreCase = true) -> {
+                Exception("Không thể kết nối đến server (Timeout). Vui lòng kiểm tra server backend tại http://10.0.2.2:8080")
+            }
+            e is java.net.ConnectException || e is java.net.UnknownHostException -> {
+                Exception("Không thể kết nối đến server. Hãy đảm bảo server backend đang chạy.")
+            }
+            else -> e
+        }
     }
 }

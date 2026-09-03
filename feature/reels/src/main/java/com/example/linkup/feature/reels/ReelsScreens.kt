@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.core.designsystem.component.Avatar
 import com.example.linkup.core.designsystem.component.LinkUpField
 import com.example.linkup.core.designsystem.component.PrimaryButton
@@ -48,7 +50,7 @@ fun ReelsScreen(onUpload: () -> Unit, onProfile: () -> Unit) {
         )
     ) {
         Text("Reels", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, modifier = Modifier.align(Alignment.TopStart).padding(18.dp))
-        Text("＋", color = Color.White, fontSize = 34.sp, modifier = Modifier.align(Alignment.TopEnd).clickable(onClick = onUpload).padding(14.dp))
+        Icon(LinkUpIcons.Plus, "Upload reel", tint = Color.White, modifier = Modifier.align(Alignment.TopEnd).clickable(onClick = onUpload).padding(14.dp).size(28.dp))
         Column(Modifier.align(Alignment.BottomStart).padding(18.dp).fillMaxWidth(.78f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.clickable(onClick = onProfile)) { Avatar("SJ", 38) }
@@ -67,7 +69,7 @@ fun ReelsScreen(onUpload: () -> Unit, onProfile: () -> Unit) {
             ReelAction(if (liked) "♥" else "♡", if (liked) "13K" else "12.9K") { liked = !liked }
             ReelAction("□", "438")
             ReelAction("↗", "Share")
-            Box(Modifier.size(42.dp).clip(CircleShape).background(Color.White.copy(alpha = .2f)), contentAlignment = Alignment.Center) { Text("♫", color = Color.White) }
+            Box(Modifier.size(42.dp).clip(CircleShape).background(Color.White.copy(alpha = .2f)), contentAlignment = Alignment.Center) { Icon(LinkUpIcons.Music, null, tint = Color.White, modifier = Modifier.size(18.dp)) }
         }
     }
 }
