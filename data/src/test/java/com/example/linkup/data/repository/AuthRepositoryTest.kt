@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import com.example.linkup.data.local.datastore.AuthTokenDataStore
+import com.example.linkup.data.network.AuthSession
 import com.example.linkup.data.remote.api.AuthApiService
 import com.example.linkup.data.remote.dto.AuthResponseDto
 import com.example.linkup.data.remote.dto.LoginRequestDto
@@ -14,12 +15,16 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.After
 import org.junit.Test
 import retrofit2.Response
 
 class AuthRepositoryTest {
 
     private lateinit var authRepository: AuthRepository
+
+    @After
+    fun clearSession() = AuthSession.clear()
 
     @Before
     fun setup() {
@@ -40,6 +45,7 @@ class AuthRepositoryTest {
         assertTrue("Login should succeed", result.isSuccess)
         assertEquals("fake_jwt_token", result.getOrNull()?.token)
         assertEquals("testuser", result.getOrNull()?.user?.username)
+        assertEquals("fake_jwt_token", AuthSession.current?.token)
     }
 
     @Test
@@ -48,6 +54,7 @@ class AuthRepositoryTest {
         assertTrue("Register should succeed", result.isSuccess)
         assertEquals("fake_jwt_token", result.getOrNull()?.token)
         assertEquals("Test User", result.getOrNull()?.user?.fullName)
+        assertEquals("u1", AuthSession.current?.user?.id)
     }
 }
 

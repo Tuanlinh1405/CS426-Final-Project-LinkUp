@@ -3,6 +3,7 @@ package com.example.linkup.data.repository
 import com.example.linkup.data.local.datastore.AuthTokenDataStore
 import com.example.linkup.data.mapper.toDomain
 import com.example.linkup.data.model.AuthResult
+import com.example.linkup.data.network.AuthSession
 import com.example.linkup.data.remote.api.AuthApiService
 import com.example.linkup.data.remote.dto.LoginRequestDto
 import com.example.linkup.data.remote.dto.RegisterRequestDto
@@ -33,6 +34,7 @@ class AuthRepositoryImpl @Inject constructor(
                     username = domainResult.user.username,
                     fullName = domainResult.user.fullName
                 )
+                AuthSession.set(domainResult)
                 Result.success(domainResult)
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Unknown login error"))
@@ -55,6 +57,7 @@ class AuthRepositoryImpl @Inject constructor(
                     username = domainResult.user.username,
                     fullName = domainResult.user.fullName
                 )
+                AuthSession.set(domainResult)
                 Result.success(domainResult)
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Unknown registration error"))
@@ -66,6 +69,7 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun logout() {
         authTokenDataStore.clearAuthData()
+        AuthSession.clear()
     }
 
     private fun mapException(e: Exception): Exception {

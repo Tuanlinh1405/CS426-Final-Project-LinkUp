@@ -1,8 +1,9 @@
 # LinkUp — kiến trúc project, REST API, WebSocket và database
 
-Tài liệu này là hợp đồng kỹ thuật để Android, backend và database có thể được phát triển song song. Bản Android 
-hiện tại là prototype chạy được bằng `FakeLinkUpRepository`; khi backend hoàn thành, thay implementation repository 
-nhưng giữ nguyên model/UI contract.
+Tài liệu này là hợp đồng kỹ thuật tổng thể để Android, backend và database có thể được phát triển song song.
+Nhiều feature vẫn là prototype dùng `FakeLinkUpRepository`; Auth và Reels đã có API thật trong source.
+Với Reels, ưu tiên [hợp đồng đã triển khai và hướng dẫn chạy](REELS_IMPLEMENTATION.md), bao gồm migration,
+media storage và recommendation theo tương tác. Các endpoint dự kiến bên dưới không có nghĩa đã được triển khai hết.
 
 ## 1. Quyết định tổ chức Android
 
@@ -35,7 +36,7 @@ LinkUp/
 └── feature/                         # mỗi folder con là một library module
     ├── auth/src/main/.../AuthScreens.kt
     ├── feed/src/main/.../FeedScreens.kt
-    ├── reels/src/main/.../ReelsScreens.kt
+    ├── reels/src/main/.../{feed,player,upload,comments}/
     ├── profile/src/main/.../ProfileScreens.kt
     ├── chat/src/main/.../ChatScreens.kt
     ├── ai/src/main/.../AiScreens.kt
@@ -168,14 +169,16 @@ Không log password/token, không hard-code JWT secret và không để AI key t
 
 | Method | Endpoint | Ghi chú |
 |---|---|---|
-| GET | `/feed?cursor=&limit=20` | cursor pagination |
-| POST | `/posts` | text, privacy, `mediaIds[]` |
+| GET | `/posts?cursor=&limit=` | cursor pagination, mặc định 15 |
+| POST | `/posts` | multipart `id`, `content`, tối đa 4 ảnh |
 | GET | `/posts/{postId}` | chi tiết post |
 | DELETE | `/posts/{postId}` | chỉ owner/admin |
-| PUT | `/posts/{postId}/reaction` | body `{type: LIKE}`; idempotent |
+| PUT | `/posts/{postId}/reaction` | like idempotent |
 | DELETE | `/posts/{postId}/reaction` | idempotent |
 | GET | `/posts/{postId}/comments?cursor=` | comment page |
-| POST | `/posts/{postId}/comments` | text, optional parentId |
+| POST | `/posts/{postId}/comments` | `{id, content}` idempotent theo id |
+| DELETE | `/posts/{postId}/comments/{commentId}` | chỉ chủ comment |
+| GET | `/media/{mediaId}` | redirect URL Storage ký ngắn hạn |
 
 Luồng mở Feed theo offline-first:
 
@@ -365,9 +368,10 @@ Definition of done cho mỗi feature: UI có loading/empty/error/offline, unit t
 
 Khi thêm màn hình, feature owner tạo Screen/Contract/ViewModel trong module của mình và gửi tên route/callback cho integration owner ghép. Mỗi PR/commit nên chỉ chạm một module và các test liên quan. Nếu cần sửa model chung, tách thành commit riêng để các nhánh khác rebase dễ hơn.
 
-## 13. Trạng thái prototype hiện tại
+## 13. Trạng thái triển khai hiện tại
 
-- UI và điều hướng chạy bằng fake repository, không cần server.
-- Các thao tác tạo post, like, gửi chat và AI mock cập nhật state trong phiên chạy.
-- Chưa có Retrofit, Room, Hilt, Ktor, PostgreSQL hoặc MinIO thật; các phần này là bước triển khai kế tiếp theo contract trên.
-- Khi đổi sang backend thật, giữ `LinkUpRepository` và thay `FakeLinkUpRepository` bằng implementation dùng local/remote data source.
+- Auth dùng Retrofit gọi Ktor; backend đã kết nối PostgreSQL/Supabase. Android giữ token trong bộ nhớ, chưa lưu phiên qua lần khởi động app.
+- Reels có repository/API riêng, UI phát/upload/comment và recommendation theo tương tác; cần migration Reels và storage sẵn sàng để chạy trọn luồng.
+- Reels hỗ trợ MinIO hoặc local storage development khi chủ động cấu hình. Xem [hướng dẫn Reels](REELS_IMPLEMENTATION.md) cho contract và giới hạn thực tế.
+- Các feature còn dùng `FakeLinkUpRepository` vẫn cập nhật state mock trong phiên chạy; không xem chúng là dữ liệu đã lưu Supabase.
+- Room, offline queue bền vững và những endpoint chưa được nêu là đã triển khai vẫn là hướng phát triển tiếp theo.
