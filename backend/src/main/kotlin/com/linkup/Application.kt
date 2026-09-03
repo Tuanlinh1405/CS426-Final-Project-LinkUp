@@ -94,7 +94,7 @@ fun Application.module() {
 
         authRoutes(userRepository)
         datingRoutes(datingRepository)
-        chatRoutes(chatRepository, wsManager, userRepository)
+        chatRoutes(chatRepository, wsManager, userRepository, mediaStorage)
         profileRoutes(profileRepository, mediaStorage)
         notificationRoutes(notificationRepository)
         userRoutes(profileRepository)

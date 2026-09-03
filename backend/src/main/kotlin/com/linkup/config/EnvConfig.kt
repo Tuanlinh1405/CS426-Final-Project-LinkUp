@@ -44,7 +44,12 @@ object EnvConfig {
             require(Files.isRegularFile(path)) { "LINKUP_ENV_FILE does not point to a readable env file." }
             return path
         }
-        return listOf(root.resolve("backend/.env"), root.resolve(".env"))
-            .firstOrNull(Files::isRegularFile) ?: root.resolve(".env")
+        val candidates = listOfNotNull(
+            root.resolve("backend/.env"),
+            root.resolve(".env"),
+            root.parent?.resolve("backend/.env"),
+            root.parent?.resolve(".env")
+        )
+        return candidates.firstOrNull(Files::isRegularFile) ?: root.resolve(".env")
     }
 }
