@@ -16,12 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.linkup.core.designsystem.component.Avatar
+import com.example.linkup.core.designsystem.component.rememberNavigationVisibilityScrollConnection
 import com.example.linkup.data.model.UserResponse
 import com.example.linkup.data.network.ApiClient
 import com.example.linkup.data.reels.*
@@ -32,7 +34,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
-fun ReelsScreen(repository: ReelRepository, me: UserResponse?, onUpload: () -> Unit, onSignIn: () -> Unit, initialReelId: String? = null) {
+fun ReelsScreen(
+    repository: ReelRepository,
+    me: UserResponse?,
+    onUpload: () -> Unit,
+    onSignIn: () -> Unit,
+    initialReelId: String? = null,
+    onNavigationVisibilityChanged: (Boolean) -> Unit = {},
+) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val items = remember { mutableStateListOf<Reel>() }
@@ -49,6 +58,9 @@ fun ReelsScreen(repository: ReelRepository, me: UserResponse?, onUpload: () -> U
     var muted by rememberSaveable { mutableStateOf(false) }
     val readyReels = remember { mutableStateMapOf<String, Boolean>() }
     val pager = rememberPagerState { items.size }
+    val navigationScrollConnection = rememberNavigationVisibilityScrollConnection(
+        onVisibilityChanged = onNavigationVisibilityChanged,
+    )
     // If startup prefetch is still running, give the Reel the user opened absolute priority.
     LaunchedEffect(Unit) { ReelVideoCache.cancelWarmups() }
     fun replace(reel: Reel) { val index = items.indexOfFirst { it.id == reel.id }; if (index >= 0) items[index] = reel }
@@ -114,7 +126,7 @@ fun ReelsScreen(repository: ReelRepository, me: UserResponse?, onUpload: () -> U
             state = pager,
             key = { items[it].id },
             beyondViewportPageCount = 1,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().nestedScroll(navigationScrollConnection),
         ) { index ->
             val reel = items[index]
             val currentIndex = pager.settledPage
