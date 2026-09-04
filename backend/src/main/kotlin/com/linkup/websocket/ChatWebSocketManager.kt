@@ -214,6 +214,27 @@ class ChatWebSocketManager(private val chatRepository: ChatRepository) {
     }
 
     /**
+     * Pushes the inbox and friend-request badge state to every live session for a user.
+     *
+     * The client still refreshes the first notification page when it is visible; the
+     * counts here let top-level badges update without waiting for navigation.
+     */
+    fun notifyNotificationsChanged(
+        userId: UUID,
+        unreadNotifications: Int,
+        pendingFriendRequests: Int? = null
+    ) {
+        broadcastToUser(
+            userId,
+            WebSocketFrame(
+                event = "NOTIFICATIONS_CHANGED",
+                unreadNotifications = unreadNotifications,
+                pendingFriendRequests = pendingFriendRequests
+            )
+        )
+    }
+
+    /**
      * Sends to every session of [userId] and evicts the ones that are already dead or that
      * fail mid-send (network cut, killed emulator). Presence therefore stops lying before
      * the 30s ping timeout, which is what made a message to an offline peer show DELIVERED.

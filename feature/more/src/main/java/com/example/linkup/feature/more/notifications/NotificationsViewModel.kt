@@ -22,6 +22,21 @@ class NotificationsViewModel @Inject constructor(
 
     private var loadedOnce = false
 
+    init {
+        viewModelScope.launch {
+            notificationRepository.realtimeUpdates.collect { update ->
+                update.unreadCount?.let { unread ->
+                    _uiState.update { it.copy(unreadCount = unread) }
+                }
+                if (loadedOnce && !_uiState.value.isLoading) {
+                    fetchFirstPage()
+                } else if (update.unreadCount == null) {
+                    refreshUnreadCount()
+                }
+            }
+        }
+    }
+
     /**
      * Loads the first page.
      *

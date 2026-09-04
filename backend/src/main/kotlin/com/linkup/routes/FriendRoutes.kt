@@ -4,7 +4,9 @@ import com.linkup.model.ApiError
 import com.linkup.model.UnreadCountDto
 import com.linkup.repository.FriendActionException
 import com.linkup.repository.FriendRepository
+import com.linkup.repository.NotificationRepository
 import com.linkup.repository.ProfileRepository
+import com.linkup.websocket.ChatWebSocketManager
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.response.respond
@@ -29,8 +31,19 @@ private const val SUGGESTION_LIMIT = 20
  */
 fun Route.friendRoutes(
     friendRepository: FriendRepository,
-    profileRepository: ProfileRepository
+    profileRepository: ProfileRepository,
+    notificationRepository: NotificationRepository,
+    wsManager: ChatWebSocketManager
 ) {
+    val notifyBoth: suspend (UUID, UUID) -> Unit = { me, other ->
+        notifySocialRealtime(
+            setOf(me, other),
+            friendRepository,
+            notificationRepository,
+            wsManager
+        )
+    }
+
     authenticate {
         route("/friends") {
 
@@ -95,39 +108,51 @@ fun Route.friendRoutes(
             }
 
             get("/{id}/state") {
-                friendAction(friendRepository, profileRepository) { me, other ->
-                    friendRepository.state(me, other)
-                }
+                friendAction(
+                    friendRepository,
+                    profileRepository,
+                    afterSuccess = { _, _ -> }
+                ) { me, other -> friendRepository.state(me, other) }
             }
 
             post("/{id}/request") {
-                friendAction(friendRepository, profileRepository) { me, other ->
-                    friendRepository.sendRequest(me, other)
-                }
+                friendAction(
+                    friendRepository,
+                    profileRepository,
+                    afterSuccess = notifyBoth
+                ) { me, other -> friendRepository.sendRequest(me, other) }
             }
 
             delete("/{id}/request") {
-                friendAction(friendRepository, profileRepository) { me, other ->
-                    friendRepository.cancelRequest(me, other)
-                }
+                friendAction(
+                    friendRepository,
+                    profileRepository,
+                    afterSuccess = notifyBoth
+                ) { me, other -> friendRepository.cancelRequest(me, other) }
             }
 
             put("/{id}/accept") {
-                friendAction(friendRepository, profileRepository) { me, other ->
-                    friendRepository.respond(me, other, accept = true)
-                }
+                friendAction(
+                    friendRepository,
+                    profileRepository,
+                    afterSuccess = notifyBoth
+                ) { me, other -> friendRepository.respond(me, other, accept = true) }
             }
 
             put("/{id}/decline") {
-                friendAction(friendRepository, profileRepository) { me, other ->
-                    friendRepository.respond(me, other, accept = false)
-                }
+                friendAction(
+                    friendRepository,
+                    profileRepository,
+                    afterSuccess = notifyBoth
+                ) { me, other -> friendRepository.respond(me, other, accept = false) }
             }
 
             delete("/{id}") {
-                friendAction(friendRepository, profileRepository) { me, other ->
-                    friendRepository.unfriend(me, other)
-                }
+                friendAction(
+                    friendRepository,
+                    profileRepository,
+                    afterSuccess = notifyBoth
+                ) { me, other -> friendRepository.unfriend(me, other) }
             }
         }
     }
@@ -140,6 +165,7 @@ fun Route.friendRoutes(
 private suspend inline fun RoutingContext.friendAction(
     friendRepository: FriendRepository,
     profileRepository: ProfileRepository,
+    crossinline afterSuccess: suspend (me: UUID, other: UUID) -> Unit,
     action: (me: UUID, other: UUID) -> Any
 ) {
     val me = call.currentUserId()
@@ -148,9 +174,28 @@ private suspend inline fun RoutingContext.friendAction(
         ?: return call.respond(HttpStatusCode.NotFound, ApiError("Profile not found"))
 
     try {
-        call.respond(HttpStatusCode.OK, action(me, other))
+        val result = action(me, other)
+        afterSuccess(me, other)
+        call.respond(HttpStatusCode.OK, result)
     } catch (e: FriendActionException) {
         call.respond(HttpStatusCode.Conflict, ApiError(e.message))
+    }
+}
+
+private suspend fun notifySocialRealtime(
+    userIds: Set<UUID>,
+    friendRepository: FriendRepository,
+    notificationRepository: NotificationRepository,
+    wsManager: ChatWebSocketManager
+) {
+    userIds.forEach { userId ->
+        runCatching {
+            wsManager.notifyNotificationsChanged(
+                userId = userId,
+                unreadNotifications = notificationRepository.unreadCount(userId),
+                pendingFriendRequests = friendRepository.incomingRequestCount(userId)
+            )
+        }
     }
 }
 

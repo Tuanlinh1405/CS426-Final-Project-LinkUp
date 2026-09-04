@@ -50,6 +50,17 @@ class FriendsViewModel @Inject constructor(
 
     private var loadedOnce = false
 
+    init {
+        viewModelScope.launch {
+            friendRepository.realtimeUpdates.collect { update ->
+                _uiState.update { it.copy(requestCount = update.incomingRequestCount) }
+                if (loadedOnce && _uiState.value.tab == FriendsTab.REQUESTS && !_uiState.value.isLoading) {
+                    fetch(FriendsTab.REQUESTS, cursor = null, showSkeleton = false)
+                }
+            }
+        }
+    }
+
     fun load(force: Boolean = false) {
         if (loadedOnce && !force) {
             refreshCounts()

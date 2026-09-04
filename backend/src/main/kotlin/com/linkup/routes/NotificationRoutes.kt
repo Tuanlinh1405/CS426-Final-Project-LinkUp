@@ -4,6 +4,7 @@ import com.linkup.model.ApiError
 import com.linkup.model.NotificationBulkResultDto
 import com.linkup.model.UnreadCountDto
 import com.linkup.repository.NotificationRepository
+import com.linkup.websocket.ChatWebSocketManager
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.response.respond
@@ -18,7 +19,10 @@ import java.util.UUID
  * Notification endpoints. Every route is scoped to the caller, so a notification
  * belonging to someone else is indistinguishable from one that does not exist.
  */
-fun Route.notificationRoutes(notificationRepository: NotificationRepository) {
+fun Route.notificationRoutes(
+    notificationRepository: NotificationRepository,
+    wsManager: ChatWebSocketManager
+) {
     authenticate {
         route("/notifications") {
 
@@ -55,9 +59,11 @@ fun Route.notificationRoutes(notificationRepository: NotificationRepository) {
                 val userId = call.currentUserId()
                     ?: return@put call.respond(HttpStatusCode.Unauthorized, ApiError("Not signed in"))
                 val affected = notificationRepository.markAllRead(userId)
+                val unreadCount = notificationRepository.unreadCount(userId)
+                wsManager.notifyNotificationsChanged(userId, unreadCount)
                 call.respond(
                     HttpStatusCode.OK,
-                    NotificationBulkResultDto(affected, notificationRepository.unreadCount(userId))
+                    NotificationBulkResultDto(affected, unreadCount)
                 )
             }
 
@@ -73,9 +79,11 @@ fun Route.notificationRoutes(notificationRepository: NotificationRepository) {
                 if (!notificationRepository.markRead(userId, id, read)) {
                     return@put call.respond(HttpStatusCode.NotFound, ApiError("Notification not found"))
                 }
+                val unreadCount = notificationRepository.unreadCount(userId)
+                wsManager.notifyNotificationsChanged(userId, unreadCount)
                 call.respond(
                     HttpStatusCode.OK,
-                    NotificationBulkResultDto(1, notificationRepository.unreadCount(userId))
+                    NotificationBulkResultDto(1, unreadCount)
                 )
             }
 
@@ -88,9 +96,11 @@ fun Route.notificationRoutes(notificationRepository: NotificationRepository) {
                 if (!notificationRepository.delete(userId, id)) {
                     return@delete call.respond(HttpStatusCode.NotFound, ApiError("Notification not found"))
                 }
+                val unreadCount = notificationRepository.unreadCount(userId)
+                wsManager.notifyNotificationsChanged(userId, unreadCount)
                 call.respond(
                     HttpStatusCode.OK,
-                    NotificationBulkResultDto(1, notificationRepository.unreadCount(userId))
+                    NotificationBulkResultDto(1, unreadCount)
                 )
             }
 
@@ -98,6 +108,7 @@ fun Route.notificationRoutes(notificationRepository: NotificationRepository) {
                 val userId = call.currentUserId()
                     ?: return@delete call.respond(HttpStatusCode.Unauthorized, ApiError("Not signed in"))
                 val affected = notificationRepository.clearAll(userId)
+                wsManager.notifyNotificationsChanged(userId, unreadNotifications = 0)
                 call.respond(HttpStatusCode.OK, NotificationBulkResultDto(affected, 0))
             }
         }

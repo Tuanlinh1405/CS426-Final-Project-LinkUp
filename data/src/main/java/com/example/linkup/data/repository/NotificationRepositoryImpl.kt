@@ -4,6 +4,14 @@ import com.example.linkup.data.mapper.toDomain
 import com.example.linkup.data.model.NotificationPage
 import com.example.linkup.data.remote.api.NotificationApiService
 import com.example.linkup.data.remote.dto.ApiErrorDto
+import com.example.linkup.data.remote.websocket.ChatWebSocketClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import retrofit2.Response
 import java.io.IOException
@@ -13,11 +21,26 @@ import javax.inject.Singleton
 @Singleton
 class NotificationRepositoryImpl @Inject constructor(
     private val api: NotificationApiService,
-    private val json: Json
+    private val json: Json,
+    private val webSocketClient: ChatWebSocketClient
 ) : NotificationRepository {
 
     private companion object {
         const val PAGE_SIZE = 25
+    }
+
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val _realtimeUpdates = MutableSharedFlow<NotificationRealtimeUpdate>(extraBufferCapacity = 32)
+    override val realtimeUpdates: SharedFlow<NotificationRealtimeUpdate> = _realtimeUpdates.asSharedFlow()
+
+    init {
+        scope.launch {
+            webSocketClient.incomingFrames.collect { frame ->
+                if (frame.event == "NOTIFICATIONS_CHANGED") {
+                    _realtimeUpdates.tryEmit(NotificationRealtimeUpdate(frame.unreadNotifications))
+                }
+            }
+        }
     }
 
     override suspend fun load(cursor: String?, unreadOnly: Boolean): Result<NotificationPage> =

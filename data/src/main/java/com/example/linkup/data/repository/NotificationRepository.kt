@@ -1,8 +1,15 @@
 package com.example.linkup.data.repository
 
 import com.example.linkup.data.model.NotificationPage
+import kotlinx.coroutines.flow.SharedFlow
+
+data class NotificationRealtimeUpdate(
+    val unreadCount: Int?
+)
 
 interface NotificationRepository {
+
+    val realtimeUpdates: SharedFlow<NotificationRealtimeUpdate>
 
     /** One page, newest first. Pass the previous page's cursor to continue. */
     suspend fun load(cursor: String?, unreadOnly: Boolean): Result<NotificationPage>

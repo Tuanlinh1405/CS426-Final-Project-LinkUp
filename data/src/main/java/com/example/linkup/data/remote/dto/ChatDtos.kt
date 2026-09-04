@@ -45,6 +45,8 @@ data class WebSocketFrameDto(
     val status: String? = null,
     val tempId: String? = null,
     val isTyping: Boolean? = null,
+    val unreadNotifications: Int? = null,
+    val pendingFriendRequests: Int? = null,
     val error: String? = null,
 )
 

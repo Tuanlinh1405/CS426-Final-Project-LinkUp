@@ -5,6 +5,14 @@ import com.example.linkup.data.model.FriendshipState
 import com.example.linkup.data.model.UserSummaryPage
 import com.example.linkup.data.remote.api.FriendApiService
 import com.example.linkup.data.remote.dto.ApiErrorDto
+import com.example.linkup.data.remote.websocket.ChatWebSocketClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import retrofit2.Response
 import java.io.IOException
@@ -14,8 +22,23 @@ import javax.inject.Singleton
 @Singleton
 class FriendRepositoryImpl @Inject constructor(
     private val api: FriendApiService,
-    private val json: Json
+    private val json: Json,
+    private val webSocketClient: ChatWebSocketClient
 ) : FriendRepository {
+
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val _realtimeUpdates = MutableSharedFlow<FriendRealtimeUpdate>(extraBufferCapacity = 32)
+    override val realtimeUpdates: SharedFlow<FriendRealtimeUpdate> = _realtimeUpdates.asSharedFlow()
+
+    init {
+        scope.launch {
+            webSocketClient.incomingFrames.collect { frame ->
+                if (frame.event == "NOTIFICATIONS_CHANGED" && frame.pendingFriendRequests != null) {
+                    _realtimeUpdates.tryEmit(FriendRealtimeUpdate(frame.pendingFriendRequests))
+                }
+            }
+        }
+    }
 
     override suspend fun friends(userId: String?, cursor: String?): Result<UserSummaryPage> =
         call { api.friends(userId?.removePrefix("@"), cursor) }.map { it.toDomain() }

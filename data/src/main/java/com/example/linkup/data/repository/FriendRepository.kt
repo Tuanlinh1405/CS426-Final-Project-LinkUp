@@ -2,8 +2,15 @@ package com.example.linkup.data.repository
 
 import com.example.linkup.data.model.FriendshipState
 import com.example.linkup.data.model.UserSummaryPage
+import kotlinx.coroutines.flow.SharedFlow
+
+data class FriendRealtimeUpdate(
+    val incomingRequestCount: Int
+)
 
 interface FriendRepository {
+
+    val realtimeUpdates: SharedFlow<FriendRealtimeUpdate>
 
     /** [userId] null means the signed-in user's own friends. */
     suspend fun friends(userId: String?, cursor: String?): Result<UserSummaryPage>

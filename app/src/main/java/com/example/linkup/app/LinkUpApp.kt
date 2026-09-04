@@ -104,6 +104,7 @@ fun LinkUpApp() {
     val postRepository = remember { PostRepositoryImpl() }
     val reelsRepository = remember { ReelRepositoryImpl() }
     val searchRepository = remember { SearchRepositoryImpl() }
+    val mainViewModel: MainViewModel = hiltViewModel()
     val authSession by AuthSession.state.collectAsState()
     DisposableEffect(reelsRepository) { onDispose { reelsRepository.close() } }
     val datingViewModel = remember {
@@ -186,6 +187,7 @@ fun LinkUpApp() {
     }
 
     LaunchedEffect(authSession?.user?.id) {
+        mainViewModel.onSessionUserChanged(authSession?.user?.id)
         if (authSession?.user != null) warmStartupReels(context, reelsRepository)
     }
 
