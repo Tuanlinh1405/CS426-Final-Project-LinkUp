@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.*
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.linkup.core.designsystem.component.Avatar
 import com.example.linkup.core.designsystem.component.rememberNavigationVisibilityScrollConnection
+import com.example.linkup.core.designsystem.icon.LinkUpIcons
 import com.example.linkup.data.model.UserResponse
 import com.example.linkup.data.network.ApiClient
 import com.example.linkup.data.reels.*
@@ -36,6 +38,7 @@ import kotlinx.coroutines.launch
 fun ReelsScreen(
     repository: ReelRepository,
     me: UserResponse?,
+    onBack: () -> Unit,
     onUpload: () -> Unit,
     onSignIn: () -> Unit,
     initialReelId: String? = null,
@@ -58,6 +61,10 @@ fun ReelsScreen(
     var muted by rememberSaveable { mutableStateOf(false) }
     val readyReels = remember { mutableStateMapOf<String, Boolean>() }
     val pager = rememberPagerState { items.size }
+    val reelFlingBehavior = PagerDefaults.flingBehavior(
+        state = pager,
+        snapPositionalThreshold = REEL_SWIPE_POSITIONAL_THRESHOLD,
+    )
     val navigationScrollConnection = rememberNavigationVisibilityScrollConnection(
         onVisibilityChanged = onNavigationVisibilityChanged,
     )
@@ -126,6 +133,7 @@ fun ReelsScreen(
             state = pager,
             key = { items[it].id },
             beyondViewportPageCount = 1,
+            flingBehavior = reelFlingBehavior,
             modifier = Modifier.fillMaxSize().nestedScroll(navigationScrollConnection),
         ) { index ->
             val reel = items[index]
@@ -168,6 +176,21 @@ fun ReelsScreen(
             }
         }
         Row(Modifier.fillMaxWidth().align(Alignment.TopCenter).background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .65f), Color.Transparent))).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = .42f)),
+            ) {
+                Icon(
+                    imageVector = LinkUpIcons.ChevronLeft,
+                    contentDescription = "Back to Feed",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(Modifier.width(8.dp))
             Text("Reels", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
             Spacer(Modifier.weight(1f))
             TextButton(onClick = { author = if (author == me?.id) null else me?.id; authorName = if (author == null) null else "My reels" }) { Text(if (author == me?.id) "For you" else "My reels", color = Color.White) }
@@ -198,6 +221,8 @@ fun ReelsScreen(
         confirmButton = { TextButton(onClick = { deleteReel = null; action(reel.id) { repository.delete(reel.id); items.removeAll { it.id == reel.id } } }) { Text("Delete") } },
         dismissButton = { TextButton(onClick = { deleteReel = null }) { Text("Cancel") } }) }
 }
+
+private const val REEL_SWIPE_POSITIONAL_THRESHOLD = 0.22f
 
 @Composable private fun ReelAction(symbol: String, label: String, color: Color = Color.White, enabled: Boolean = true, onClick: () -> Unit) {
     Column(Modifier.width(70.dp).clickable(enabled = enabled, onClick = onClick).padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {

@@ -331,6 +331,10 @@ fun LinkUpApp() {
                 AppRoute.REELS -> ReelsScreen(
                     repository = reelsRepository,
                     me = authSession?.user,
+                    onBack = {
+                        selectedReelId = null
+                        reset(AppRoute.FEED)
+                    },
                     onUpload = { goTo(AppRoute.UPLOAD_REEL) },
                     onSignIn = { sessionViewModel.logout(); aiViewModel.reset(); reset(AppRoute.LOGIN) },
                     initialReelId = selectedReelId,
