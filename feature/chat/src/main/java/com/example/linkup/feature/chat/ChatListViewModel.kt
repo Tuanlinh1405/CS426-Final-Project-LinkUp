@@ -47,6 +47,19 @@ class ChatListViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
+    val onlineUserIds: StateFlow<Set<String>> = chatRepository.onlineUserIds
+
+    val onlineConversations: StateFlow<List<Conversation>> = combine(
+        chatRepository.conversationsState,
+        onlineUserIds
+    ) { list, onlineIds ->
+        list.filter { !it.isGroup && it.user.id in onlineIds }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
     private val _friends = MutableStateFlow<List<UserSummary>>(emptyList())
     val friends: StateFlow<List<UserSummary>> = _friends.asStateFlow()
 
@@ -67,7 +80,11 @@ class ChatListViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _isLoading.value = true
-            chatRepository.refreshConversations()
+            chatRepository.refreshConversations().onSuccess { list ->
+                list.filter { !it.isGroup }.forEach { conv ->
+                    chatRepository.loadPresence(conv.id)
+                }
+            }
             _isLoading.value = false
         }
     }
@@ -76,7 +93,7 @@ class ChatListViewModel @Inject constructor(
         viewModelScope.launch {
             chatRepository.createDirectConversation(targetUserId)
                 .onSuccess { onSuccess(it) }
-                .onFailure { _banner.value = (it.message ?: "Không tạo được cuộc trò chuyện") to true }
+                .onFailure { _banner.value = (it.message ?: "Failed to create conversation") to true }
         }
     }
 
@@ -97,7 +114,7 @@ class ChatListViewModel @Inject constructor(
         viewModelScope.launch {
             friendRepository.friends(null, null)
                 .onSuccess { page -> _friends.value = page.items }
-                .onFailure { _banner.value = (it.message ?: "Không tải được danh sách bạn bè") to true }
+                .onFailure { _banner.value = (it.message ?: "Failed to load friends list") to true }
         }
     }
 
@@ -108,10 +125,10 @@ class ChatListViewModel @Inject constructor(
             chatRepository.createGroupConversation(name, memberIds)
                 .onSuccess { conv ->
                     _showGroupDialog.value = false
-                    _banner.value = "Đã tạo nhóm \"$name\" với ${memberIds.size} thành viên" to false
+                    _banner.value = "Created group \"$name\" with ${memberIds.size} members" to false
                     onSuccess(conv)
                 }
-                .onFailure { _banner.value = (it.message ?: "Không tạo được nhóm") to true }
+                .onFailure { _banner.value = (it.message ?: "Failed to create group") to true }
             _isCreatingGroup.value = false
         }
     }

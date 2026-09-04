@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -89,7 +90,7 @@ class ChatRepositoryImpl @Inject constructor(
 
     init {
         scope.launch {
-            authTokenDataStore.userIdFlow.collect { id ->
+            authTokenDataStore.userIdFlow.distinctUntilChanged().collect { id ->
                 if (currentUserId != id) {
                     currentUserId = id
                     _conversationsState.value = emptyList()
@@ -117,14 +118,6 @@ class ChatRepositoryImpl @Inject constructor(
         scope.launch {
             webSocketClient.incomingFrames.collect { frame ->
                 handleWebSocketFrame(frame)
-            }
-        }
-
-        scope.launch {
-            webSocketClient.connectionState.collect { state ->
-                if (state == ChatWebSocketClient.ConnectionState.CONNECTED && _conversationsState.value.isEmpty()) {
-                    refreshConversations()
-                }
             }
         }
     }
@@ -468,7 +461,9 @@ class ChatRepositoryImpl @Inject constructor(
         try {
             val response = chatApiService.getPresence(conversationId)
             if (response.isSuccessful && response.body() != null) {
-                _onlineUserIds.value = response.body()!!.onlineUserIds.toSet()
+                _onlineUserIds.update { current ->
+                    current + response.body()!!.onlineUserIds.toSet()
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading presence for conversation $conversationId", e)
@@ -574,6 +569,13 @@ class ChatRepositoryImpl @Inject constructor(
                 // the server (which sends SEEN back to the sender) instead of badging it.
                 if (!incomingMsg.fromMe && convId == activeConversationId) {
                     scope.launch { markAsRead(convId) }
+                }
+
+                // If this conversation wasn't loaded yet (e.g. group chat created while
+                // we were online but the WS reconnect hadn't refreshed), force a list
+                // refresh so the row appears in the chat list.
+                if (_conversationsState.value.none { it.id == convId }) {
+                    scheduleListRefresh()
                 }
             }
 

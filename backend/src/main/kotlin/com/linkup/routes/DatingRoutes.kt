@@ -59,10 +59,8 @@ fun Route.datingRoutes(repository: DatingRepository) {
                 val userId = call.currentUserId() ?: return@get call.respond(HttpStatusCode.Unauthorized)
                 call.respond(repository.matches(userId))
             }
-        }
 
-        route("/notifications") {
-            get {
+            get("/notifications") {
                 val userId = call.currentUserId() ?: return@get call.respond(HttpStatusCode.Unauthorized)
                 call.respond(repository.notifications(userId))
             }

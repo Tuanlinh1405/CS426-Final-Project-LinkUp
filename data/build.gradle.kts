@@ -20,7 +20,7 @@ android {
         }
         val apiUrl = providers.gradleProperty("linkup.apiBaseUrl").orNull
             ?: localApiUrl
-            ?: "http://10.0.2.2:8080/"
+            ?: "http://localhost:8080/"
         require(apiUrl.endsWith("/") && apiUrl.matches(Regex("https?://[^\\\"\\s]+/"))) {
             "linkup.apiBaseUrl must be an HTTP(S) URL ending in /"
         }

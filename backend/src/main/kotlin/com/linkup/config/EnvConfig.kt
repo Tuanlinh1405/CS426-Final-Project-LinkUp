@@ -7,8 +7,8 @@ import java.nio.file.Path
 /** Server-only configuration. OS variables override ignored local env files. */
 object EnvConfig {
     private val dotenv: Dotenv by lazy { load(findEnvFile(Path.of(""), System.getenv("LINKUP_ENV_FILE")), ".env") }
-    private val storageDotenv: Dotenv by lazy { load(runtimeDirectory.resolve(".env.storage"), ".env.storage") }
-    private val aiDotenv: Dotenv by lazy { load(runtimeDirectory.resolve(".env.ai"), ".env.ai") }
+    private val storageDotenv: Dotenv by lazy { load(findEnvFile(Path.of(""), ".env.storage"), ".env.storage") }
+    private val aiDotenv: Dotenv by lazy { load(findEnvFile(Path.of(""), ".env.ai"), ".env.ai") }
 
     val PORT: Int get() = (dotenv["PORT"] ?: "8080").toIntOrNull()
         ?.takeIf { it in 1..65535 } ?: error("PORT must be a number between 1 and 65535.")
@@ -44,17 +44,17 @@ object EnvConfig {
 
     internal fun findEnvFile(workingDirectory: Path, explicitFile: String?): Path {
         val root = workingDirectory.toAbsolutePath().normalize()
+        val targetName = explicitFile?.takeIf { it.isNotBlank() } ?: ".env"
         if (!explicitFile.isNullOrBlank()) {
             val path = root.resolve(explicitFile).normalize()
-            require(Files.isRegularFile(path)) { "LINKUP_ENV_FILE does not point to a readable env file." }
-            return path
+            if (Files.isRegularFile(path)) return path
         }
         val candidates = listOfNotNull(
-            root.resolve("backend/.env"),
-            root.resolve(".env"),
-            root.parent?.resolve("backend/.env"),
-            root.parent?.resolve(".env")
+            root.resolve("backend/$targetName"),
+            root.resolve(targetName),
+            root.parent?.resolve("backend/$targetName"),
+            root.parent?.resolve(targetName)
         )
-        return candidates.firstOrNull(Files::isRegularFile) ?: root.resolve(".env")
+        return candidates.firstOrNull(Files::isRegularFile) ?: root.resolve(targetName)
     }
 }

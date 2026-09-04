@@ -79,7 +79,7 @@ class ShareToChatViewModel @Inject constructor(
         viewModelScope.launch {
             _loading.value = true
             chatRepository.refreshConversations()
-                .onFailure { _error.value = it.message ?: "Không tải được cuộc trò chuyện" }
+                .onFailure { _error.value = it.message ?: "Failed to load conversations" }
             _loading.value = false
         }
     }
@@ -99,7 +99,7 @@ class ShareToChatViewModel @Inject constructor(
             val sent = results.count { it.isSuccess }
             _sending.value = false
             if (sent == conversationIds.size) onComplete(sent)
-            else _error.value = "Đã gửi $sent/${conversationIds.size}. Kiểm tra kết nối rồi thử lại."
+            else _error.value = "Sent $sent/${conversationIds.size}. Check connection and try again."
         }
     }
 }
@@ -132,7 +132,7 @@ fun ShareToChatSheet(
     ModalBottomSheet(onDismissRequest = { if (!sending) onDismiss() }) {
         Column(Modifier.fillMaxWidth().imePadding()) {
             Text(
-                if (content.type == SharedContent.TYPE_REEL) "Chia sẻ Reel" else "Chia sẻ bài viết",
+                if (content.type == SharedContent.TYPE_REEL) "Share Reel" else "Share Post",
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 21.sp,
                 modifier = Modifier.padding(horizontal = 20.dp),
@@ -141,7 +141,7 @@ fun ShareToChatSheet(
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text("Tìm cuộc trò chuyện") },
+                placeholder = { Text("Search conversations") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             )
@@ -155,7 +155,7 @@ fun ShareToChatSheet(
 
                 visible.isEmpty() -> Box(
                     Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center
-                ) { Text("Không tìm thấy cuộc trò chuyện", color = LinkMuted) }
+                ) { Text("No conversations found", color = LinkMuted) }
 
                 else -> LazyColumn(Modifier.fillMaxWidth().height(280.dp)) {
                     items(visible, key = { it.id }) { conversation ->
@@ -179,7 +179,7 @@ fun ShareToChatSheet(
                 modifier = Modifier.fillMaxWidth().padding(16.dp).height(50.dp),
             ) {
                 if (sending) CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
-                else Text(if (selected.size <= 1) "Gửi" else "Gửi đến ${selected.size} cuộc trò chuyện")
+                else Text(if (selected.size <= 1) "Send" else "Send to ${selected.size} conversations")
             }
         }
     }
@@ -202,8 +202,8 @@ private fun SharedContentPreview(content: SharedContent) {
             )
         }
         Column(Modifier.weight(1f).padding(start = if (previewUrl != null) 10.dp else 0.dp)) {
-            Text(if (content.type == SharedContent.TYPE_REEL) "Reel" else "Bài viết", fontWeight = FontWeight.Bold)
-            Text(content.caption.ifBlank { "Nội dung được chia sẻ" }, maxLines = 2, overflow = TextOverflow.Ellipsis, color = LinkMuted, fontSize = 13.sp)
+            Text(if (content.type == SharedContent.TYPE_REEL) "Reel" else "Post", fontWeight = FontWeight.Bold)
+            Text(content.caption.ifBlank { "Shared content" }, maxLines = 2, overflow = TextOverflow.Ellipsis, color = LinkMuted, fontSize = 13.sp)
         }
     }
 }

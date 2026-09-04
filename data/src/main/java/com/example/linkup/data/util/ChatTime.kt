@@ -61,7 +61,7 @@ object ChatTime {
     }
 
     /**
-     * Separator label between days inside a thread: "Hôm nay", "Hôm qua", then `dd/MM/yyyy`.
+     * Separator label between days inside a thread: "Today", "Yesterday", then `dd/MM/yyyy`.
      *
      * Returns null when the stamp cannot be parsed, so the caller simply omits the chip
      * instead of printing a raw ISO string across the middle of the conversation.
@@ -69,8 +69,8 @@ object ChatTime {
     fun dayLabel(rawIso: String?): String? {
         val millis = parseMillis(rawIso) ?: return null
         return when (daysAgo(millis)) {
-            0L -> "Hôm nay"
-            1L -> "Hôm qua"
+            0L -> "Today"
+            1L -> "Yesterday"
             else -> localFullDate.format(Date(millis))
         }
     }

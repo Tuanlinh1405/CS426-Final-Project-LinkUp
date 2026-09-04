@@ -5,11 +5,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -24,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -60,6 +64,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -90,6 +95,8 @@ fun ChatListRoute(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val typingConversationIds by viewModel.typingConversationIds.collectAsState()
+    val onlineUserIds by viewModel.onlineUserIds.collectAsState()
+    val onlineConversations by viewModel.onlineConversations.collectAsState()
     val friends by viewModel.friends.collectAsState()
     val showGroupDialog by viewModel.showGroupDialog.collectAsState()
     val isCreatingGroup by viewModel.isCreatingGroup.collectAsState()
@@ -100,6 +107,8 @@ fun ChatListRoute(
         searchQuery = searchQuery,
         isLoading = isLoading,
         typingConversationIds = typingConversationIds,
+        onlineUserIds = onlineUserIds,
+        onlineConversations = onlineConversations,
         friends = friends,
         showGroupDialog = showGroupDialog,
         isCreatingGroup = isCreatingGroup,
@@ -150,6 +159,7 @@ fun ChatDetailRoute(
 
     val conv = currentConversation
     ChatDetailScreen(
+        conversationId = conversationId,
         title = conv?.user?.name ?: title,
         messages = domainMessages,
         isPeerTyping = isPeerTyping,
@@ -181,6 +191,8 @@ fun ChatListScreen(
     searchQuery: String = "",
     isLoading: Boolean = false,
     typingConversationIds: Set<String> = emptySet(),
+    onlineUserIds: Set<String> = emptySet(),
+    onlineConversations: List<Conversation> = emptyList(),
     friends: List<UserSummary> = emptyList(),
     showGroupDialog: Boolean = false,
     isCreatingGroup: Boolean = false,
@@ -209,15 +221,15 @@ fun ChatListScreen(
     if (showNewChatDialog) {
         AlertDialog(
             onDismissRequest = { showNewChatDialog = false },
-            title = { Text("Tạo cuộc trò chuyện mới", fontWeight = FontWeight.Bold) },
+            title = { Text("Create new conversation", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
-                    Text("Nhập Target User ID của đối phương:", fontSize = 14.sp, color = LinkMuted)
+                    Text("Enter target User ID:", fontSize = 14.sp, color = LinkMuted)
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = targetUserIdInput,
                         onValueChange = { targetUserIdInput = it },
-                        placeholder = { Text("Ví dụ: UUID của user") },
+                        placeholder = { Text("Example: user UUID") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -235,12 +247,12 @@ fun ChatListScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = LinkPurple)
                 ) {
-                    Text("Tạo Chat", color = Color.White)
+                    Text("Create Chat", color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showNewChatDialog = false }) {
-                    Text("Hủy", color = LinkMuted)
+                    Text("Cancel", color = LinkMuted)
                 }
             }
         )
@@ -270,14 +282,14 @@ fun ChatListScreen(
                 )
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                     DropdownMenuItem(
-                        text = { Text("Tin nhắn mới") },
+                        text = { Text("New message") },
                         onClick = {
                             showMenu = false
                             showNewChatDialog = true
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Tạo nhóm mới") },
+                        text = { Text("New group") },
                         onClick = {
                             showMenu = false
                             onOpenGroupDialog()
@@ -304,6 +316,13 @@ fun ChatListScreen(
             ChatBanner(banner.first, banner.second, onBannerDismiss)
         }
 
+        if (onlineConversations.isNotEmpty()) {
+            ActiveNowSection(
+                onlineConversations = onlineConversations,
+                onOpenChat = onOpenChat
+            )
+        }
+
         if (filtered.isEmpty()) {
             if (isLoading) {
                 // First load in progress and nothing cached yet — show a neutral placeholder
@@ -312,7 +331,7 @@ fun ChatListScreen(
                     Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Đang tải cuộc trò chuyện…", color = LinkMuted)
+                    Text("Loading conversations…", color = LinkMuted)
                 }
             } else {
                 Box(
@@ -323,14 +342,14 @@ fun ChatListScreen(
                         Icon(LinkUpIcons.Chat, null, tint = LinkPurple, modifier = Modifier.size(48.dp))
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            "Chưa có cuộc trò chuyện nào",
+                            "No conversations yet",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
                             color = Color(0xFF1E1B2E)
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "Bấm dấu ＋ góc trên để bắt đầu một cuộc trò chuyện hoặc tạo nhóm mới!",
+                            "Tap '+' at top right to start a conversation or create a group!",
                             fontSize = 13.sp,
                             color = LinkMuted,
                             textAlign = TextAlign.Center
@@ -341,10 +360,10 @@ fun ChatListScreen(
                                 onClick = { showNewChatDialog = true },
                                 colors = ButtonDefaults.buttonColors(containerColor = LinkPurple)
                             ) {
-                                Text("Tin nhắn mới", color = Color.White)
+                                Text("New message", color = Color.White)
                             }
                             TextButton(onClick = onOpenGroupDialog) {
-                                Text("Tạo nhóm", color = LinkPurple, fontWeight = FontWeight.Bold)
+                                Text("Create group", color = LinkPurple, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -356,6 +375,7 @@ fun ChatListScreen(
                     ConversationRow(
                         conversation = conversation,
                         isPeerTyping = conversation.id in typingConversationIds,
+                        isPeerOnline = !conversation.isGroup && conversation.user.id in onlineUserIds,
                         onClick = { onOpenChat(conversation) },
                         onOpenProfile = onOpenProfile
                     )
@@ -370,6 +390,7 @@ fun ChatListScreen(
 private fun ConversationRow(
     conversation: Conversation,
     isPeerTyping: Boolean,
+    isPeerOnline: Boolean = false,
     onClick: () -> Unit,
     onOpenProfile: ((String) -> Unit)? = null,
 ) {
@@ -396,13 +417,18 @@ private fun ConversationRow(
                     size = 48.dp
                 )
             } else {
-                CircleAvatar(conversation.user.avatarUrl, conversation.user.initials, 48.dp)
+                OnlineAvatar(
+                    avatarUrl = conversation.user.avatarUrl,
+                    initials = conversation.user.initials,
+                    size = 48.dp,
+                    isOnline = isPeerOnline
+                )
             }
         }
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Text(conversation.user.name, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (isPeerTyping) {
-                Text("đang nhập…", color = LinkPurple, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text("typing…", color = LinkPurple, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             } else {
                 Text(
                     conversation.preview,
@@ -427,7 +453,97 @@ private fun ConversationRow(
 }
 
 @Composable
+private fun ActiveNowSection(
+    onlineConversations: List<Conversation>,
+    onOpenChat: (Conversation) -> Unit
+) {
+    Column(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp)) {
+        Text(
+            text = "Active Now",
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp,
+            color = LinkMuted,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+        )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(onlineConversations, key = { it.id }) { conversation ->
+                ActiveUserItem(
+                    conversation = conversation,
+                    onClick = { onOpenChat(conversation) }
+                )
+            }
+        }
+        HorizontalDivider(color = LinkDivider, modifier = Modifier.padding(top = 10.dp))
+    }
+}
+
+@Composable
+private fun ActiveUserItem(
+    conversation: Conversation,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(60.dp)
+            .clickable(onClick = onClick)
+    ) {
+        OnlineAvatar(
+            avatarUrl = conversation.user.avatarUrl,
+            initials = conversation.user.initials,
+            size = 52.dp,
+            isOnline = true
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = conversation.user.name.split(" ").firstOrNull() ?: conversation.user.name,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+fun OnlineAvatar(
+    avatarUrl: String?,
+    initials: String,
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+    isOnline: Boolean = false,
+    onClick: (() -> Unit)? = null
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        contentAlignment = Alignment.Center
+    ) {
+        CircleAvatar(
+            avatarUrl = avatarUrl,
+            initials = initials,
+            size = size
+        )
+        if (isOnline) {
+            Box(
+                modifier = Modifier
+                    .size(size * 0.28f)
+                    .align(Alignment.BottomEnd)
+                    .background(Color(0xFF4CAF50), CircleShape)
+                    .border(2.dp, Color.White, CircleShape)
+            )
+        }
+    }
+}
+
+@Composable
 fun ChatDetailScreen(
+    conversationId: String? = null,
     title: String = "Chat",
     messages: List<Message>,
     isPeerTyping: Boolean = false,
@@ -451,30 +567,48 @@ fun ChatDetailScreen(
     var draft by remember { mutableStateOf("") }
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
     val messageListState = rememberLazyListState()
+    val isDragged by messageListState.interactionSource.collectIsDraggedAsState()
+    var userHasScrolledManually by remember(conversationId ?: messages.firstOrNull()?.conversationId) {
+        mutableStateOf(false)
+    }
+
+    LaunchedEffect(isDragged) {
+        if (isDragged) {
+            userHasScrolledManually = true
+        }
+    }
+
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
 
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? -> if (uri != null) onSendImage?.invoke(uri) }
 
-    // Only follow new messages when the user is already near the bottom. Scrolling to the
-    // end on every size change fought pagination: prepending older rows grows the list and
-    // would yank the view back down.
     val newestId = messages.lastOrNull()?.id
-    LaunchedEffect(newestId, imeBottom) {
+    val lastMessageFromMe = messages.lastOrNull()?.fromMe == true
+
+    LaunchedEffect(conversationId, newestId, imeBottom) {
         if (messages.isEmpty()) return@LaunchedEffect
-        val lastVisible = messageListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-        val nearBottom = lastVisible >= messages.size - 3
-        if (nearBottom || messageListState.layoutInfo.totalItemsCount == 0) {
-            messageListState.animateScrollToItem(messages.size - 1)
+
+        val targetIndex = messages.size - 1
+        if (!userHasScrolledManually) {
+            messageListState.scrollToItem(targetIndex)
+        } else {
+            val lastVisible = messageListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            val nearBottom = lastVisible >= messages.size - 4
+            if (nearBottom || lastMessageFromMe) {
+                messageListState.animateScrollToItem(targetIndex)
+            }
         }
     }
 
-    // Reaching the top asks for the previous page.
-    LaunchedEffect(messageListState, messages.size) {
+    // Reaching the top asks for the previous page (only after user has manually scrolled).
+    LaunchedEffect(messageListState, conversationId) {
         snapshotFlow { messageListState.firstVisibleItemIndex }
             .collect { firstVisible ->
-                if (firstVisible <= 1 && messages.isNotEmpty()) onLoadOlder?.invoke()
+                if (userHasScrolledManually && firstVisible <= 1 && messages.isNotEmpty() && !isLoadingOlder) {
+                    onLoadOlder?.invoke()
+                }
             }
     }
 
@@ -485,8 +619,8 @@ fun ChatDetailScreen(
     if (pendingDeleteId != null) {
         AlertDialog(
             onDismissRequest = { pendingDeleteId = null },
-            title = { Text("Xóa tin nhắn?", fontWeight = FontWeight.Bold) },
-            text = { Text("Tin nhắn sẽ bị xóa với tất cả mọi người.") },
+            title = { Text("Delete message?", fontWeight = FontWeight.Bold) },
+            text = { Text("Message will be deleted for everyone.") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -495,12 +629,12 @@ fun ChatDetailScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = LinkPurple)
                 ) {
-                    Text("Xóa", color = Color.White)
+                    Text("Delete", color = Color.White)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { pendingDeleteId = null }) {
-                    Text("Hủy", color = LinkMuted)
+                    Text("Cancel", color = LinkMuted)
                 }
             }
         )
@@ -510,8 +644,8 @@ fun ChatDetailScreen(
         ChatDetailHeader(
             title = title,
             subtitle = when {
-                isPeerTyping -> "đang nhập…"
-                isPeerOnline -> "Đang hoạt động"
+                isPeerTyping -> "typing…"
+                isPeerOnline -> "Active now"
                 else -> null
             },
             isGroup = isGroup,
@@ -535,13 +669,18 @@ fun ChatDetailScreen(
                 }
             }
             itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
-                // In a group, only the first message of a run gets a name and an avatar.
                 val previous = messages.getOrNull(index - 1)
-                val startsRun = previous == null || previous.senderId != message.senderId
-                val face = participantAvatars[message.senderId]
+                val next = messages.getOrNull(index + 1)
 
                 val dayKey = ChatTime.dayKey(message.createdAt)
                 val previousDayKey = previous?.let { ChatTime.dayKey(it.createdAt) }
+                val nextDayKey = next?.let { ChatTime.dayKey(it.createdAt) }
+
+                val startsRun = previous == null || previous.senderId != message.senderId || (dayKey != null && dayKey != previousDayKey)
+                val endsRun = next == null || next.senderId != message.senderId || (dayKey != null && dayKey != nextDayKey)
+
+                val face = participantAvatars[message.senderId]
+
                 if (dayKey != null && dayKey != previousDayKey) {
                     ChatTime.dayLabel(message.createdAt)?.let { DaySeparator(it) }
                 }
@@ -549,7 +688,7 @@ fun ChatDetailScreen(
                 DomainMessageBubble(
                     message = message,
                     showSenderName = isGroup && startsRun && !message.fromMe,
-                    showAvatar = startsRun && !message.fromMe,
+                    showAvatar = endsRun && !message.fromMe,
                     senderAvatarUrl = face?.first,
                     senderInitials = face?.second ?: message.senderName?.take(1)?.uppercase() ?: "?",
                     onLongPress = if (message.fromMe && onDeleteMessage != null) {
@@ -593,7 +732,7 @@ fun ChatDetailScreen(
     }
 }
 
-/** Centered "Hôm nay" / "Hôm qua" / date chip between messages from different days. */
+/** Centered "Today" / "Yesterday" / date chip between messages from different days. */
 @Composable
 private fun DaySeparator(label: String) {
     Box(Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
@@ -709,7 +848,8 @@ private fun DomainMessageBubble(
 ) {
     Row(
         Modifier.fillMaxWidth(),
-        horizontalArrangement = if (message.fromMe) Arrangement.End else Arrangement.Start
+        horizontalArrangement = if (message.fromMe) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom
     ) {
         if (!message.fromMe) {
             if (showAvatar) {
@@ -761,7 +901,7 @@ private fun DomainMessageBubble(
             } else if (message.type == "IMAGE" && !message.mediaUrl.isNullOrEmpty()) {
                 AsyncImage(
                     model = message.mediaUrl,
-                    contentDescription = "Ảnh",
+                    contentDescription = "Photo",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -799,7 +939,7 @@ private fun DomainMessageBubble(
 @Composable
 private fun SharedMessageCard(message: Message) {
     val foreground = if (message.fromMe) Color.White else Color(0xFF1E1B2E)
-    val label = if (message.type == "REEL") "Reel" else "Bài viết"
+    val label = if (message.type == "REEL") "Reel" else "Post"
     val mediaUrl = message.mediaUrl
     if (!mediaUrl.isNullOrBlank()) {
         Box {
@@ -820,12 +960,12 @@ private fun SharedMessageCard(message: Message) {
     }
     Text(label, color = foreground, fontWeight = FontWeight.Bold, fontSize = 12.sp)
     Text(
-        message.textContent?.takeIf { it.isNotBlank() } ?: "Nhấn để xem nội dung",
+        message.textContent?.takeIf { it.isNotBlank() } ?: "Tap to view content",
         color = foreground,
         maxLines = 3,
         overflow = TextOverflow.Ellipsis,
     )
-    Text("Nhấn để mở", color = foreground.copy(alpha = .7f), fontSize = 10.sp)
+    Text("Tap to open", color = foreground.copy(alpha = .7f), fontSize = 10.sp)
 }
 
 /**
@@ -847,26 +987,26 @@ private fun NewGroupDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Tạo nhóm mới", fontWeight = FontWeight.Bold) },
+        title = { Text("Create new group", fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 OutlinedTextField(
                     value = groupName,
                     onValueChange = { groupName = it },
-                    placeholder = { Text("Tên nhóm") },
+                    placeholder = { Text("Group name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "Chọn thành viên (tối thiểu 2): ${selected.size} đã chọn",
+                    "Select members (min 2): ${selected.size} selected",
                     fontSize = 13.sp,
                     color = LinkMuted
                 )
                 Spacer(Modifier.height(8.dp))
                 if (friends.isEmpty()) {
                     Text(
-                        "Bạn chưa có bạn bè nào. Hãy thêm bạn trước khi tạo nhóm.",
+                        "You have no friends yet. Add friends before creating a group.",
                         fontSize = 13.sp,
                         color = LinkMuted
                     )
@@ -915,13 +1055,13 @@ private fun NewGroupDialog(
                         modifier = Modifier.size(16.dp)
                     )
                 } else {
-                    Text("Tạo nhóm", color = Color.White)
+                    Text("Create group", color = Color.White)
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Hủy", color = LinkMuted)
+                Text("Cancel", color = LinkMuted)
             }
         }
     )

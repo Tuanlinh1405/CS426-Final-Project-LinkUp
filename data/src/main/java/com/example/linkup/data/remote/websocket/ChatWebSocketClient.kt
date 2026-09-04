@@ -31,7 +31,7 @@ class ChatWebSocketClient @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val authTokenDataStore: AuthTokenDataStore,
     private val json: Json,
-    private val baseUrl: String = "http://10.0.2.2:8080/",
+    private val baseUrl: String = "http://localhost:8080/",
 ) {
     enum class ConnectionState {
         DISCONNECTED,
@@ -45,6 +45,7 @@ class ChatWebSocketClient @Inject constructor(
     private var shouldKeepAlive = false
     private var connectedToken: String? = null
     private var reconnectAttempts = 0
+    private var connectGeneration = 0
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
@@ -55,6 +56,7 @@ class ChatWebSocketClient @Inject constructor(
     fun connect() {
         shouldKeepAlive = true
         reconnectJob?.cancel()
+        reconnectJob = null
 
         scope.launch {
             val token = authTokenDataStore.getStoredToken()
@@ -68,20 +70,24 @@ class ChatWebSocketClient @Inject constructor(
                 return@launch
             }
 
-            if (_connectionState.value != ConnectionState.DISCONNECTED) {
-                webSocket?.close(1000, "Reconnecting with new token")
+            // Kill the old socket immediately — close() waits for a handshake that may
+            // never come, leaving two parallel connections and doubling log noise.
+            val oldWs = webSocket
+            if (oldWs != null) {
+                try { oldWs.cancel() } catch (_: Exception) {}
                 webSocket = null
             }
 
             _connectionState.value = ConnectionState.CONNECTING
             connectedToken = token
+            connectGeneration++
 
             val wsUrl = buildWebSocketUrl(baseUrl, token)
             val request = Request.Builder()
                 .url(wsUrl)
                 .build()
 
-            Log.d(TAG, "Connecting to WebSocket: ${sanitizeUrl(wsUrl)}")
+            Log.d(TAG, "Connecting to WebSocket (gen=$connectGeneration): ${sanitizeUrl(wsUrl)}")
             webSocket = okHttpClient.newWebSocket(request, createWebSocketListener())
         }
     }
@@ -175,12 +181,16 @@ class ChatWebSocketClient @Inject constructor(
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
             Log.d(TAG, "WebSocket closed: $code / $reason")
+            // If this socket was already replaced by a newer connect(), ignore its
+            // lifecycle events — the new socket owns the state now.
+            if (webSocket !== this@ChatWebSocketClient.webSocket) return
             _connectionState.value = ConnectionState.DISCONNECTED
             scheduleReconnect()
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             Log.e(TAG, "WebSocket failure: ${t.message}", t)
+            if (webSocket !== this@ChatWebSocketClient.webSocket) return
             _connectionState.value = ConnectionState.DISCONNECTED
             scheduleReconnect()
         }

@@ -104,6 +104,11 @@ class ChatViewModel @Inject constructor(
         peerTypingResetJob?.cancel()
         cancelTyping()
 
+        // Seed with whatever the repository already has so the UI shows cached messages
+        // immediately instead of flashing empty while the REST fetch completes.
+        val existingMessages = chatRepository.getMessagesFlow(conversationId).value
+        _messagesState.value = existingMessages
+
         activeMessagesJob?.cancel()
         activeMessagesJob = viewModelScope.launch {
             chatRepository.getMessagesFlow(conversationId).collect { list ->

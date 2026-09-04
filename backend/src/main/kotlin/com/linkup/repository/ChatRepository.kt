@@ -201,10 +201,11 @@ class ChatRepository {
         val rows = (MessagesTable innerJoin UsersTable)
             .selectAll()
             .where { MessagesTable.conversationId eq conversationId }
-            .orderBy(MessagesTable.createdAt to SortOrder.ASC)
+            .orderBy(MessagesTable.createdAt to SortOrder.DESC)
             .limit(limit)
             .offset(offset)
             .toList()
+            .reversed()
 
         if (rows.isEmpty()) return@dbQuery emptyList()
 

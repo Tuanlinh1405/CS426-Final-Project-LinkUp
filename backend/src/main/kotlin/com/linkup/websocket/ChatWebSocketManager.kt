@@ -5,6 +5,7 @@ import com.linkup.model.WebSocketFrame
 import com.linkup.repository.ChatRepository
 import io.ktor.server.websocket.DefaultWebSocketServerSession
 import io.ktor.websocket.Frame
+import io.ktor.websocket.close
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -37,9 +38,19 @@ class ChatWebSocketManager(private val chatRepository: ChatRepository) {
 
     suspend fun onUserConnected(userId: UUID, session: DefaultWebSocketServerSession) {
         val sessions = userSessions.computeIfAbsent(userId) { ConcurrentHashMap.newKeySet() }
+
+        // Evict stale sessions from the same user (dual-connection from reconnect).
+        // Without this, a reconnect creates a second entry; the old socket lingers until
+        // the ping timeout, during which sendToUserNow delivers to the dead one first.
+        val stale = sessions.filter { it != session && it.isActive }
+        for (old in stale) {
+            try { old.close() } catch (_: Exception) {}
+            sessions.remove(old)
+        }
+
         val wasOffline = sessions.isEmpty()
         sessions.add(session)
-        logger.info("User connected to WebSocket: $userId (total sessions: ${userSessions[userId]?.size})")
+        logger.info("User connected to WebSocket: $userId (total sessions: ${sessions.size})")
 
         // Watch for an abnormal drop (emulator killed / network cut). The main incoming
         // loop only calls onUserDisconnected when the for-loop ends, which can be delayed
