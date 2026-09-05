@@ -473,9 +473,9 @@ fun LinkUpApp() {
                 }
                 AppRoute.DATING_MATCH -> DatingMatchScreen(
                     repository.currentUser(), datingMatch,
-                    { reset(AppRoute.CHAT_DETAIL) }, { reset(AppRoute.DATING_DISCOVER) }
+                    { goTo(AppRoute.CHAT_DETAIL) }, { reset(AppRoute.DATING_DISCOVER) }
                 )
-                AppRoute.DATING_MATCHES -> DatingMatchesScreen(datingUiState.matches, ::back) { reset(AppRoute.CHAT_DETAIL) }
+                AppRoute.DATING_MATCHES -> DatingMatchesScreen(datingUiState.matches, ::back) { goTo(AppRoute.CHAT_DETAIL) }
                 AppRoute.SETTINGS -> SettingsScreen(
                     onBack = ::back,
                     onLogout = {
