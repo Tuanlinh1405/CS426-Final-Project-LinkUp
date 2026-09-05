@@ -31,7 +31,7 @@ class ChatWebSocketClient @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val authTokenDataStore: AuthTokenDataStore,
     private val json: Json,
-    private val baseUrl: String = "http://localhost:8080/",
+    private val baseUrl: String = "http://10.0.2.2:8080/",
 ) {
     enum class ConnectionState {
         DISCONNECTED,
