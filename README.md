@@ -13,6 +13,42 @@
   <img alt="PostgreSQL" src="https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white">
 </p>
 
+## Project information
+
+| Item | Details |
+|---|---|
+| Project title | **LinkUp — A Full-Stack Social Networking Application for Android** |
+| Project type | University coursework project |
+| Demo video | **[Add the public demo video URL here before submission]** |
+| Build instructions | See [Build and run instructions](#build-and-run-instructions) |
+| Test credentials | See [Test accounts](#test-accounts) |
+
+## Team members
+
+| Student ID | Full name |
+|---|---|
+| 24125079 | Tran Dinh Quoc Thang |
+| 24125057 | Tran Dang Le Huy |
+| 24125066 | Bui Trong Tuan Linh |
+| 24125054 | Do Manh Cuong |
+| 24125065 | Vo Quoc Linh |
+
+## Test accounts
+
+LinkUp requires authentication. The following standard seed accounts are reserved for coursework
+evaluation and the two-device real-time demonstration. They contain demonstration data only and
+must not be reused for personal or production accounts.
+
+| Device | Email | Password | Suggested use |
+|---|---|---|---|
+| Device A | `linkup.seed.01@example.com` | `Seed!J07M_jweSCYaOFIDkv4I_EOQ` | Feed, Reels, comments, sharing, and sending Chat messages |
+| Device B | `linkup.seed.02@example.com` | `Seed!QtIKNxowTmcRO_NF0LmYDbCD` | Receiving Chat messages, typing, presence, and read-receipt verification |
+
+The shared development backend and Supabase project must be available for these accounts to work.
+If the test database is reseeded or replaced, update this table before submission. Infrastructure
+credentials such as database passwords, JWT secrets, Supabase S3 keys, and Gemini API keys are
+deliberately excluded from this README.
+
 LinkUp is an academic project that recreates the core experience of a modern social networking
 platform. The Android client is built with Jetpack Compose, while a Ktor backend exposes REST APIs
 and WebSocket communication. PostgreSQL on Supabase stores relational data, Supabase Storage hosts
@@ -152,13 +188,13 @@ editing the same integration files.
 The Gradle Wrapper downloads the required Gradle version, so contributors do not need a global
 Gradle installation.
 
-## Getting started
+## Build and run instructions
 
 ### 1. Clone and open the project
 
 ```powershell
-git clone <repository-url>
-cd <repository-folder>
+git clone https://github.com/Tuanlinh1405/CS426-Final-Project-LinkUp.git
+cd CS426-Final-Project-LinkUp
 ```
 
 Open the **repository root** in Android Studio. Do not open the `app/` directory as a standalone
@@ -321,9 +357,6 @@ Chat messages, typing state, presence, receipts, and deletion events are deliver
 WebSocket. Feed interactions, friendships, and in-app notifications are persisted on the server,
 but the other device may need to refresh. The current build does not provide FCM/system push.
 
-See [Demo Video Script](docs/DEMO_VIDEO_SCRIPT.md) for a complete single-device and two-device
-recording plan.
-
 ## Testing and code quality
 
 ### Android/JVM unit tests
@@ -417,15 +450,10 @@ contain placeholders rather than live credentials.
    steps in the pull request.
 7. Include before/after screenshots for UI changes and test real-time changes with two accounts.
 
-See [Team Workflow](docs/project-report/sections/11_team_workflow.md) for ownership and integration
-guidance.
-
 ## Documentation
 
 | Document | Description |
 |---|---|
-| [Project Report](docs/project-report/REPORT.md) | Full source-backed technical report and traceability matrix |
-| [Demo Video Script](docs/DEMO_VIDEO_SCRIPT.md) | Recording script for single-device and two-device demonstrations |
 | [Architecture & API](docs/ARCHITECTURE_API_DATABASE.md) | Module boundaries, REST, WebSocket, and database contracts |
 | [Database Schema](docs/Database%20Design/schema.sql) | Canonical PostgreSQL base schema |
 | [Backend Guide](backend/README.md) | Backend configuration and endpoint reference |

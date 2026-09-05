@@ -42,6 +42,7 @@ import com.example.linkup.core.navigation.AppRoute
 import com.example.linkup.core.navigation.NavDirection
 import com.example.linkup.data.model.Conversation
 import com.example.linkup.data.model.SharedContent
+import com.example.linkup.data.repository.ChatRepository
 import com.example.linkup.data.feed.FeedPost
 import com.example.linkup.data.feed.PostRepositoryImpl
 import com.example.linkup.data.network.AuthSession
@@ -132,6 +133,13 @@ fun LinkUpApp() {
         ).deviceImageReader()
     }
     val datingScope = rememberCoroutineScope()
+    val chatRepository = remember {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            DatingApiEntryPoint::class.java
+        ).chatRepository()
+    }
+    var openingMatchChat by remember { mutableStateOf(false) }
     val datingPhotoPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -186,6 +194,25 @@ fun LinkUpApp() {
     fun replace(route: AppRoute) { navigator.replace(route); sync() }
     fun reset(route: AppRoute) { navigator.reset(route); sync() }
     fun back() { if (navigator.back()) sync() }
+
+    // A match only writes dating_matches, so the pair has no chat thread yet. Resolve (or
+    // create) the direct conversation before navigating; otherwise the detail screen would
+    // open on a placeholder id that the backend rejects as a non-UUID.
+    fun openChatWithMatch(match: DatingMatch) {
+        if (openingMatchChat) return
+        openingMatchChat = true
+        datingScope.launch {
+            chatRepository.createDirectConversation(match.user.id)
+                .onSuccess { conv ->
+                    selectedConversation = conv
+                    goTo(AppRoute.CHAT_DETAIL)
+                }
+                .onFailure {
+                    Toast.makeText(context, "Không mở được cuộc trò chuyện", Toast.LENGTH_SHORT).show()
+                }
+            openingMatchChat = false
+        }
+    }
 
     LaunchedEffect(datingViewModel) {
         datingViewModel.effects.collect { effect ->
@@ -508,9 +535,9 @@ fun LinkUpApp() {
                 }
                 AppRoute.DATING_MATCH -> DatingMatchScreen(
                     repository.currentUser(), datingMatch,
-                    { goTo(AppRoute.CHAT_DETAIL) }, { reset(AppRoute.DATING_DISCOVER) }
+                    { datingMatch?.let(::openChatWithMatch) }, { reset(AppRoute.DATING_DISCOVER) }
                 )
-                AppRoute.DATING_MATCHES -> DatingMatchesScreen(datingUiState.matches, ::back) { goTo(AppRoute.CHAT_DETAIL) }
+                AppRoute.DATING_MATCHES -> DatingMatchesScreen(datingUiState.matches, ::back, ::openChatWithMatch)
                 AppRoute.SETTINGS -> SettingsScreen(
                     onBack = ::back,
                     onLogout = {
@@ -555,5 +582,6 @@ private const val SCREEN_FADE_MS = 200
 interface DatingApiEntryPoint {
     fun datingApiService(): DatingApiService
     fun deviceImageReader(): DeviceImageReader
+    fun chatRepository(): ChatRepository
 }
 private const val PRIMARY_NAV_ANIMATION_MS = 180

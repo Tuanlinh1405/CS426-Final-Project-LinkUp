@@ -394,13 +394,13 @@ fun DatingMatchScreen(me: User, match: DatingMatch?, onChat: () -> Unit, onConti
 }
 
 @Composable
-fun DatingMatchesScreen(matches: List<DatingMatch>, onBack: () -> Unit, onChat: () -> Unit) {
+fun DatingMatchesScreen(matches: List<DatingMatch>, onBack: () -> Unit, onChat: (DatingMatch) -> Unit) {
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Matches", onBack)
         Text("New matches", fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             matches.forEach { match ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onChat)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onChat(match) }) {
                     Box(Modifier.clip(CircleShape).background(Brush.linearGradient(listOf(LinkPink, LinkPurple))).padding(3.dp)) {
                         Box(Modifier.clip(CircleShape).background(Color.White).padding(3.dp)) { Text(match.user.initials, modifier = Modifier.padding(14.dp), fontWeight = FontWeight.Bold) }
                     }
@@ -410,7 +410,7 @@ fun DatingMatchesScreen(matches: List<DatingMatch>, onBack: () -> Unit, onChat: 
         }
         Text("Messages", fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
         matches.forEach { match ->
-            Row(Modifier.fillMaxWidth().clickable(onClick = onChat).padding(16.dp)) {
+            Row(Modifier.fillMaxWidth().clickable { onChat(match) }.padding(16.dp)) {
                 Box(Modifier.clip(CircleShape).background(LinkPurpleSoft).padding(13.dp)) { Text(match.user.initials, color = LinkPurple, fontWeight = FontWeight.Bold) }
                 Column(Modifier.padding(start = 12.dp)) { Text(match.user.name, fontWeight = FontWeight.Bold); Text("Say hello to your new match!", color = LinkMuted, fontSize = 12.sp) }
             }
