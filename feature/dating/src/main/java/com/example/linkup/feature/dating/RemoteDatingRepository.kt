@@ -1,6 +1,11 @@
 package com.example.linkup.feature.dating
 
+import com.example.linkup.data.model.PickedImage
 import com.example.linkup.data.model.User
+import com.example.linkup.data.network.ApiClient
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 
 /** Maps the backend contract to Dating domain models. */
@@ -12,6 +17,12 @@ class RemoteDatingRepository @Inject constructor(
     override suspend fun updateProfile(profile: DatingProfile): DatingProfile {
         return api.updateProfile(profile.toRequest()).requireBody().toDomain()
     }
+
+    override suspend fun uploadPhoto(image: PickedImage): List<DatingPhoto> =
+        api.uploadPhoto(image.toPart()).requireBody().map { it.toDomain() }
+
+    override suspend fun deletePhoto(photoId: String): List<DatingPhoto> =
+        api.deletePhoto(photoId).requireBody().map { it.toDomain() }
 
     override suspend fun getDiscoverCandidates(): List<DatingCandidate> =
         api.getDiscoverCandidates().requireBody().map { it.toDomain() }
@@ -29,7 +40,8 @@ class RemoteDatingRepository @Inject constructor(
         api.getMatches().requireBody().map { it.toDomain() }
 
     override suspend fun resetPassedCandidates() {
-        // PASS history is persisted by the backend; it is not reset locally.
+        val response = api.resetPassedSwipes()
+        check(response.isSuccessful) { "Dating API request failed: ${response.code()}" }
     }
 
     private fun DatingProfile.toRequest() = DatingProfileRequestDto(
@@ -48,14 +60,34 @@ class RemoteDatingRepository @Inject constructor(
         lookingFor = runCatching { LookingFor.valueOf(lookingFor) }.getOrDefault(LookingFor.RELATIONSHIP),
         preferredGender = preferredGender,
         minAge = minAge,
-        maxAge = maxAge
+        maxAge = maxAge,
+        photos = photos.map { it.toDomain() },
+        name = name.orEmpty(),
+        username = username.orEmpty(),
+        initials = initials.orEmpty(),
+        age = age ?: 0,
+        avatarUrl = avatarUrl?.let(ApiClient::mediaUrl)
     )
+
+    private fun DatingPhotoDto.toDomain() = DatingPhoto(
+        id = id,
+        photoUrl = ApiClient.mediaUrl(photoUrl),
+        displayOrder = displayOrder
+    )
+
+    private fun PickedImage.toPart(): MultipartBody.Part =
+        MultipartBody.Part.createFormData(
+            "file",
+            fileName,
+            bytes.toRequestBody(mimeType.toMediaTypeOrNull())
+        )
 
     private fun DatingCandidateResponseDto.toDomain() = DatingCandidate(
         user = User(userId, name, username, initials, bio.orEmpty()),
         age = age ?: 0,
         bio = bio.orEmpty(),
         interests = interests,
+        photoUrl = photoUrl?.let(ApiClient::mediaUrl),
         likedYou = likedYou,
         compatibilityScore = compatibilityScore
     )

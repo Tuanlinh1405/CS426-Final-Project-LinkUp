@@ -19,7 +19,19 @@ data class DatingProfile(
     val lookingFor: LookingFor,
     val preferredGender: String? = null,
     val minAge: Int? = null,
-    val maxAge: Int? = null
+    val maxAge: Int? = null,
+    val photos: List<DatingPhoto> = emptyList(),
+    val name: String = "",
+    val username: String = "",
+    val initials: String = "",
+    val age: Int = 0,
+    val avatarUrl: String? = null
+)
+
+data class DatingPhoto(
+    val id: String,
+    val photoUrl: String,
+    val displayOrder: Int
 )
 
 data class DatingCandidate(

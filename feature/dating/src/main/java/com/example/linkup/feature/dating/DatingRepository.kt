@@ -1,10 +1,13 @@
 package com.example.linkup.feature.dating
 
+import com.example.linkup.data.model.PickedImage
 import com.example.linkup.data.model.User
 
 interface DatingRepository {
     suspend fun getProfile(): DatingProfile?
     suspend fun updateProfile(profile: DatingProfile): DatingProfile
+    suspend fun uploadPhoto(image: PickedImage): List<DatingPhoto>
+    suspend fun deletePhoto(photoId: String): List<DatingPhoto>
     suspend fun getDiscoverCandidates(): List<DatingCandidate>
     suspend fun swipe(targetUserId: String, decision: SwipeDecision): SwipeResult
     suspend fun getMatches(): List<DatingMatch>
@@ -36,6 +39,17 @@ class FakeDatingRepository(
         require(profile.userId == currentUser.id) { "Profile belongs to another user" }
         this.profile = profile
         return profile
+    }
+
+    override suspend fun uploadPhoto(image: PickedImage): List<DatingPhoto> {
+        val photo = DatingPhoto("photo-${profile.photos.size + 1}", image.fileName, profile.photos.size)
+        profile = profile.copy(photos = profile.photos + photo)
+        return profile.photos
+    }
+
+    override suspend fun deletePhoto(photoId: String): List<DatingPhoto> {
+        profile = profile.copy(photos = profile.photos.filterNot { it.id == photoId })
+        return profile.photos
     }
 
     override suspend fun getDiscoverCandidates(): List<DatingCandidate> {

@@ -20,7 +20,20 @@ data class DatingProfileResponse(
     val lookingFor: String,
     val preferredGender: String?,
     val minAge: Int?,
-    val maxAge: Int?
+    val maxAge: Int?,
+    val photos: List<DatingPhotoDto> = emptyList(),
+    val name: String? = null,
+    val username: String? = null,
+    val initials: String? = null,
+    val age: Int? = null,
+    val avatarUrl: String? = null
+)
+
+@Serializable
+data class DatingPhotoDto(
+    val id: String,
+    val photoUrl: String,
+    val displayOrder: Int
 )
 
 @Serializable
@@ -33,7 +46,8 @@ data class DatingCandidateResponse(
     val bio: String?,
     val interests: List<String>,
     val likedYou: Boolean,
-    val compatibilityScore: Int
+    val compatibilityScore: Int,
+    val photoUrl: String? = null
 )
 
 @Serializable

@@ -2,7 +2,7 @@ package com.example.linkup.feature.dating
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.linkup.data.model.User
+import com.example.linkup.data.model.PickedImage
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -15,10 +15,9 @@ import kotlinx.coroutines.sync.withLock
 import java.io.IOException
 
 class DatingViewModel(
-    private val repository: DatingRepository,
-    currentUser: User
+    private val repository: DatingRepository
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(DatingUiState(profile = defaultDatingProfile(currentUser)))
+    private val _uiState = MutableStateFlow(DatingUiState(isLoading = true))
     val uiState: StateFlow<DatingUiState> = _uiState.asStateFlow()
 
     private val _effects = MutableSharedFlow<DatingEffect>()
@@ -50,6 +49,26 @@ class DatingViewModel(
             runAction(isSaving = true) {
                 val savedProfile = repository.updateProfile(profile)
                 _uiState.value.copy(profile = savedProfile)
+            }
+        }
+    }
+
+    fun uploadPhoto(image: PickedImage) {
+        viewModelScope.launch {
+            runAction(isSaving = true) {
+                val photos = repository.uploadPhoto(image)
+                val current = _uiState.value.profile ?: return@runAction _uiState.value
+                _uiState.value.copy(profile = current.copy(photos = photos))
+            }
+        }
+    }
+
+    fun deletePhoto(photoId: String) {
+        viewModelScope.launch {
+            runAction(isSaving = true) {
+                val photos = repository.deletePhoto(photoId)
+                val current = _uiState.value.profile ?: return@runAction _uiState.value
+                _uiState.value.copy(profile = current.copy(photos = photos))
             }
         }
     }

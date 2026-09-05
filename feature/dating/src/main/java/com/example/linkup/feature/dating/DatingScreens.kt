@@ -7,11 +7,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,10 +33,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.linkup.core.designsystem.component.ChoiceChip
 import com.example.linkup.core.designsystem.component.EmptyState
 import com.example.linkup.core.designsystem.component.LinkUpField
@@ -47,10 +56,12 @@ import com.example.linkup.core.designsystem.theme.LinkPurpleSoft
 @Composable
 fun DatingProfileScreen(
     profile: DatingProfile,
-    me: User,
     onBack: () -> Unit,
     onSave: (DatingProfile) -> Unit,
-    onExplore: () -> Unit
+    onExplore: () -> Unit,
+    onPickPhoto: () -> Unit,
+    onDeletePhoto: (String) -> Unit,
+    isSaving: Boolean = false
 ) {
     var bio by remember(profile) { mutableStateOf(profile.bio) }
     var interests by remember(profile) { mutableStateOf(profile.interests.toSet()) }
@@ -61,11 +72,21 @@ fun DatingProfileScreen(
     val availableInterests = listOf("Travel", "Design", "Coffee", "Music", "Sports")
     Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState())) {
         ScreenHeader("Dating Profile", onBack)
-        Box(Modifier.fillMaxWidth().height(250.dp).padding(16.dp).clip(RoundedCornerShape(18.dp)).background(Brush.verticalGradient(listOf(Color(0xFFFFC0D2), Color(0xFF6A3AA8)))), contentAlignment = Alignment.Center) {
-            Text("${me.initials}\nProfile photo", color = Color.White, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontSize = 24.sp)
-        }
+        DatingPhotoStrip(
+            photos = profile.photos,
+            fallbackUrl = profile.avatarUrl,
+            initials = profile.initials,
+            isBusy = isSaving,
+            onPickPhoto = onPickPhoto,
+            onDeletePhoto = onDeletePhoto
+        )
         Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("${me.name}, 24", fontWeight = FontWeight.ExtraBold, fontSize = 24.sp)
+            Text(
+                if (profile.age > 0) "${profile.name}, ${profile.age}" else profile.name,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 24.sp
+            )
+            if (profile.username.isNotBlank()) Text(profile.username, color = LinkMuted)
             LinkUpField(bio, { bio = it }, "About me", singleLine = false)
             Text("Interests", fontWeight = FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -114,6 +135,109 @@ fun DatingProfileScreen(
     }
 }
 
+/** Horizontal strip of the user's dating photos with an add tile and per-photo remove. */
+@Composable
+private fun DatingPhotoStrip(
+    photos: List<DatingPhoto>,
+    fallbackUrl: String?,
+    initials: String,
+    isBusy: Boolean,
+    onPickPhoto: () -> Unit,
+    onDeletePhoto: (String) -> Unit
+) {
+    LazyRow(
+        Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp)
+    ) {
+        item {
+            Box(
+                Modifier
+                    .width(120.dp)
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Brush.verticalGradient(listOf(Color(0xFFFFC0D2), Color(0xFF6A3AA8))))
+                    .clickable(enabled = !isBusy, onClick = onPickPhoto),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("+ Add photo", color = Color.White, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            }
+        }
+        items(photos, key = { it.id }) { photo ->
+            Box(Modifier.width(120.dp).aspectRatio(1f).clip(RoundedCornerShape(16.dp))) {
+                AsyncImage(
+                    model = fadeInRequest(photo.photoUrl),
+                    contentDescription = "Dating photo",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .clickable(enabled = !isBusy, onClick = { onDeletePhoto(photo.id) }),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("×", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        if (photos.isEmpty() && !fallbackUrl.isNullOrBlank()) {
+            item {
+                Box(Modifier.width(120.dp).aspectRatio(1f).clip(RoundedCornerShape(16.dp))) {
+                    AsyncImage(
+                        model = fadeInRequest(fallbackUrl),
+                        contentDescription = "Profile photo",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
+        if (photos.isEmpty() && fallbackUrl.isNullOrBlank()) {
+            item {
+                Box(
+                    Modifier
+                        .width(120.dp)
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Brush.verticalGradient(listOf(Color(0xFFD8C6A5), Color(0xFF5D7158)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(initials, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun fadeInRequest(url: String): ImageRequest =
+    ImageRequest.Builder(LocalContext.current)
+        .data(url)
+        .crossfade(true)
+        .build()
+
+/** Shows a remote photo when available, otherwise the candidate's initials on a gradient. */
+@Composable
+private fun CandidatePhoto(candidate: DatingCandidate, initialsFontSize: androidx.compose.ui.unit.TextUnit = 28.sp) {
+    if (!candidate.photoUrl.isNullOrBlank()) {
+        AsyncImage(
+            model = fadeInRequest(candidate.photoUrl),
+            contentDescription = "${candidate.user.name}'s photo",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+    } else {
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFFD8C6A5), Color(0xFF5D7158))))) {
+            Text(candidate.user.initials, color = Color.White, fontSize = initialsFontSize, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+        }
+    }
+}
+
 @Composable
 fun DatingDiscoverScreen(
     candidate: DatingCandidate?,
@@ -152,7 +276,7 @@ fun DatingDiscoverScreen(
                         .background(Brush.verticalGradient(listOf(Color(0xFFD8C6A5), Color(0xFF5D7158)))),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(candidate.photoUrl ?: candidate.user.initials, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    CandidatePhoto(candidate, initialsFontSize = 28.sp)
                 }
                 Column(Modifier.padding(18.dp)) {
                     Text("${candidate.user.name}, ${candidate.age}", fontWeight = FontWeight.ExtraBold, fontSize = 25.sp)
@@ -187,7 +311,7 @@ fun CandidateProfileScreen(
                 .background(Brush.verticalGradient(listOf(Color(0xFFD8C6A5), Color(0xFF5D7158)))),
             contentAlignment = Alignment.Center
         ) {
-            Text(candidate.photoUrl ?: candidate.user.initials, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            CandidatePhoto(candidate, initialsFontSize = 30.sp)
         }
         Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("${candidate.user.name}, ${candidate.age}", fontWeight = FontWeight.ExtraBold, fontSize = 28.sp)
@@ -229,7 +353,7 @@ fun PublicProfileScreen(candidate: DatingCandidate, onBack: () -> Unit) {
                 .background(Brush.verticalGradient(listOf(Color(0xFFD8C6A5), Color(0xFF5D7158)))),
             contentAlignment = Alignment.Center
         ) {
-            Text(candidate.photoUrl ?: candidate.user.initials, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            CandidatePhoto(candidate, initialsFontSize = 30.sp)
         }
         Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(candidate.user.name, fontWeight = FontWeight.ExtraBold, fontSize = 28.sp)

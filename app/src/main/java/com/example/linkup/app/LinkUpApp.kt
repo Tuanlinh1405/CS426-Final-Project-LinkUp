@@ -1,6 +1,10 @@
 package com.example.linkup.app
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -26,6 +30,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,6 +48,8 @@ import com.example.linkup.data.network.AuthSession
 import com.example.linkup.data.reels.ReelRepositoryImpl
 import com.example.linkup.data.search.SearchRepositoryImpl
 import com.example.linkup.data.repository.FakeLinkUpRepository
+import com.example.linkup.data.local.media.DeviceImageReader
+import com.example.linkup.data.model.PickedImage
 import com.example.linkup.feature.ai.AiChatScreen
 import com.example.linkup.feature.ai.AiConversationsScreen
 import com.example.linkup.feature.ai.AiViewModel
@@ -90,6 +97,7 @@ import com.example.linkup.feature.profile.view.ProfileViewModel
 import com.example.linkup.feature.reels.ReelsScreen
 import com.example.linkup.feature.reels.UploadReelScreen
 import com.example.linkup.feature.reels.warmStartupReels
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
 private val primaryDestinations = setOf(
@@ -113,11 +121,32 @@ fun LinkUpApp() {
                     context.applicationContext,
                     DatingApiEntryPoint::class.java
                 ).datingApiService()
-            ),
-            repository.currentUser()
+            )
         )
     }
     val datingUiState by datingViewModel.uiState.collectAsState()
+    val datingImageReader = remember {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            DatingApiEntryPoint::class.java
+        ).deviceImageReader()
+    }
+    val datingScope = rememberCoroutineScope()
+    val datingPhotoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        val picked = uri ?: return@rememberLauncherForActivityResult
+        datingScope.launch {
+            val image = runCatching {
+                datingImageReader.read(picked, DeviceImageReader.COVER_MAX_DIMENSION, "dating.jpg")
+            }.getOrNull()
+            if (image == null) {
+                Toast.makeText(context, "That image could not be read", Toast.LENGTH_SHORT).show()
+            } else {
+                datingViewModel.uploadPhoto(image)
+            }
+        }
+    }
     val navigator = remember { AppNavigator() }
     // Hoisted: the feed's bell badge and the notifications inbox read one instance,
     // so marking something read updates the badge without a refetch.
@@ -444,10 +473,16 @@ fun LinkUpApp() {
                 AppRoute.DATING_PROFILE -> datingUiState.profile?.let { profile ->
                     DatingProfileScreen(
                         profile = profile,
-                        me = repository.currentUser(),
                         onBack = ::back,
                         onSave = datingViewModel::saveProfile,
-                        onExplore = { reset(AppRoute.DATING_DISCOVER) }
+                        onExplore = { reset(AppRoute.DATING_DISCOVER) },
+                        onPickPhoto = {
+                            datingPhotoPicker.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        onDeletePhoto = datingViewModel::deletePhoto,
+                        isSaving = datingUiState.isSaving
                     )
                 }
                 AppRoute.DATING_DISCOVER -> DatingDiscoverScreen(
@@ -519,5 +554,6 @@ private const val SCREEN_FADE_MS = 200
 @InstallIn(SingletonComponent::class)
 interface DatingApiEntryPoint {
     fun datingApiService(): DatingApiService
+    fun deviceImageReader(): DeviceImageReader
 }
 private const val PRIMARY_NAV_ANIMATION_MS = 180
